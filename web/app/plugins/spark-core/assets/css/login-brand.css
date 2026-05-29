@@ -32,32 +32,27 @@ body.login {
   padding-top: 7vh;
 }
 
-/* Logo plate — only renders artwork when --spark-logo-url is set to a
-   real url() by brand-admin.php; otherwise it falls back to `none`. */
+/* Logo plate. The white card + shadow only render when a real brand
+   logo exists (brand-admin.php adds `.has-logo` to the login <body>).
+   With no brand set, the base rule leaves the area unstyled so an
+   unbranded starter install shows no empty white box. */
 .login h1 a {
-  width: 200px;
-  max-width: 100%;
-  height: 76px;
-  margin-bottom: 20px;
-  background-color: #fff;
   background-image: var(--spark-logo-url, none);
   background-position: center;
-  background-size: 150px auto;
   background-repeat: no-repeat;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.22);
 }
 
-/* When a real brand image exists, brand-admin.php adds `.has-logo` to
-   the login <body>. Most brand marks are compact (often square), so
-   the plate becomes a tight, roughly square card sized to the logo —
-   `contain` with padding, no wide empty white margins. Recolor or
-   resize per project if the logo is strongly horizontal. */
+/* Branded: a tight, roughly-square white card sized to the logo. Most
+   brand marks are compact; resize per project if strongly horizontal. */
 .login.has-logo h1 a {
   width: 84px;
   height: 84px;
+  margin-bottom: 20px;
   padding: 16px;
+  background-color: #fff;
   background-size: 52px auto;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.22);
 }
 
 .login form {
