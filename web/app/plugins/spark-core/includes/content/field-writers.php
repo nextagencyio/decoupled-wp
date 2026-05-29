@@ -211,8 +211,19 @@ function component_rows($value, array $media_table): array
  */
 function build_component_row(string $type, array $row, array $media_table): ?array
 {
-    $img_spec = ['value_type' => 'url'];
-    $img = fn($v) => (string) (resolve_image_value(coerce_image($v), $media_table, $img_spec) ?? '');
+    // Resolve a component image to a stored URL. A `{media: ref}` wrapper
+    // resolves via the ref table; a raw URL is sideloaded into the media
+    // library (idempotent, hash-deduped) so seeded images become real WP
+    // attachments — matching Drupal's inline-image behavior — and fall
+    // back to the literal URL only if the fetch fails.
+    $img = function ($v) use ($media_table): string {
+        $alt = is_array($v) ? (string) ($v['alt'] ?? '') : '';
+        $coerced = coerce_image($v);
+        if (is_string($coerced) && $coerced !== '') {
+            return sideload_component_image($coerced, $alt);
+        }
+        return (string) (resolve_image_value($coerced, $media_table, ['value_type' => 'url']) ?? '');
+    };
 
     switch ($type) {
         case 'richtext':
@@ -438,6 +449,37 @@ function build_component_row(string $type, array $row, array $media_table): ?arr
             ];
     }
     return null;
+}
+
+/**
+ * Sideload a raw component-image URL into the media library and return
+ * the stored attachment URL. Idempotent (hash-deduped via import_media),
+ * so re-running the seed reuses the existing attachment. Skips obviously
+ * fake URLs and falls back to the literal URL when the fetch fails — a
+ * broken image never sinks the import.
+ */
+function sideload_component_image(string $url, string $alt = ''): string
+{
+    if ($url === '' || !str_starts_with($url, 'http')) {
+        return $url;
+    }
+    if (str_contains($url, 'example.com') || str_contains($url, 'placeholder')) {
+        return '';
+    }
+
+    $warnings = [];
+    $table = import_media(
+        [['ref' => 'component', 'sourceUrl' => $url, 'alt' => $alt]],
+        $warnings
+    );
+    $att = (int) ($table['component'] ?? 0);
+    if ($att > 0) {
+        $src = wp_get_attachment_url($att);
+        if (is_string($src) && $src !== '') {
+            return $src;
+        }
+    }
+    return $url; // fetch failed — keep the literal URL so rendering still works
 }
 
 /**
