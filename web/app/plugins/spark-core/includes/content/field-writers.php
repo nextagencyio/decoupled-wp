@@ -172,9 +172,9 @@ function gallery_rows($value, array $media_table, array $spec): array
  * Image fields are stored as URL strings (value_type 'url'); a `media`
  * ref or `url`/`src` is resolved via resolve_image_value. Two storage
  * quirks match the Carbon field definitions:
- *   - stats `figures` is a JSON-string textarea (Carbon can't persist
- *     this 6th nested complex programmatically) → encode the incoming
- *     `stats` array as JSON.
+ *   - stats `figures` is a one-per-line "value | label | description"
+ *     textarea (Carbon can't persist this 6th nested complex
+ *     programmatically) → encode the incoming `stats` array as lines.
  *   - pricing tier `features` is one-per-line text (Carbon can't persist
  *     3-level complex) → join the incoming string[] with newlines.
  *
@@ -415,26 +415,16 @@ function build_component_row(string $type, array $row, array $media_table): ?arr
             ];
 
         case 'stats':
-            // Figures are stored as a JSON string (Carbon can't persist
-            // this nested complex programmatically). Encode the incoming
-            // stats array; the normalizer decodes it back to `stats`.
-            $figures = [];
-            foreach ((is_array($row['stats'] ?? null) ? $row['stats'] : []) as $s) {
-                if (!is_array($s)) {
-                    continue;
-                }
-                $figures[] = [
-                    'value'       => (string) ($s['value'] ?? ''),
-                    'label'       => (string) ($s['label'] ?? ''),
-                    'description' => (string) ($s['description'] ?? ''),
-                ];
-            }
+            // Figures are stored as one-per-line "value | label |
+            // description" text (Carbon can't persist this nested complex
+            // programmatically). Encode the incoming stats array; the
+            // normalizer parses it back into `stats`.
             return [
                 '_type'            => 'stats',
                 'eyebrow'          => (string) ($row['eyebrow'] ?? ''),
                 'title'            => (string) ($row['title'] ?? ''),
                 'background_color' => (string) ($row['background_color'] ?? ''),
-                'figures'          => (string) wp_json_encode($figures),
+                'figures'          => spark_stats_to_lines($row['stats'] ?? []),
             ];
 
         case 'newsletter':

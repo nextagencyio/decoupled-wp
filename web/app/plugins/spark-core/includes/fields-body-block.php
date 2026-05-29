@@ -217,21 +217,20 @@ if (!function_exists('spark_make_components_field')) {
                         Field::make('text', 'url', __('URL', 'spark-core')),
                     ]),
             ])
-            // — Stats: a row of figures. Stored as a JSON textarea, NOT a
-            //   nested complex: this is the 6th nested-complex group in
-            //   one components field and Carbon's programmatic
-            //   carbon_set_post_meta refuses to persist its rows (the
-            //   editor UI handles it, but content-import / spark-puck
-            //   write programmatically). A JSON textarea round-trips
-            //   reliably; the normalizer json-decodes `figures` into the
-            //   `stats` array the frontend contract expects. Authors who
-            //   need the structured UI can use the gallery/cards groups;
-            //   stats is typically seeded via import, not hand-built.
+            // — Stats: a row of figures. Stored as a one-per-line textarea
+            //   ("value | label | description"), NOT a nested complex:
+            //   this is the 6th nested-complex group in one components
+            //   field and Carbon's programmatic carbon_set_post_meta
+            //   refuses to persist its rows (the editor UI handles it, but
+            //   content-import / spark-puck write programmatically). A
+            //   pipe-delimited textarea round-trips reliably and stays
+            //   human-editable; the normalizer parses `figures` into the
+            //   `stats` array the frontend contract expects.
             ->add_fields('stats', __('Stats', 'spark-core'), [
                 Field::make('text', 'eyebrow', __('Eyebrow', 'spark-core')),
                 Field::make('text', 'title', __('Title', 'spark-core')),
                 Field::make('text', 'background_color', __('Background color', 'spark-core')),
-                Field::make('textarea', 'figures', __('Stats (JSON: [{value,label,description}])', 'spark-core'))
+                Field::make('textarea', 'figures', __('Stats — one per line: value | label | description', 'spark-core'))
                     ->set_rows(4),
             ])
             // — Newsletter signup.
@@ -407,6 +406,79 @@ if (!function_exists('spark_components_to_array')) {
     }
 }
 
+if (!function_exists('spark_lines_to_stats')) {
+    /**
+     * Parse the stats `figures` textarea — one stat per line as
+     * "value | label | description" — into the [{value,label,description}]
+     * array the frontend contract expects. The description is optional;
+     * blank lines are skipped. A line with no pipe is treated as just a
+     * value. Tolerates a legacy JSON string (older content).
+     *
+     * @param mixed $raw
+     * @return array<int, array{value:string,label:string,description:string}>
+     */
+    function spark_lines_to_stats($raw): array
+    {
+        if (is_array($raw)) {
+            return $raw; // already structured (e.g. inbound from Puck)
+        }
+        $text = (string) $raw;
+        $trimmed = trim($text);
+        // Back-compat: decode a legacy JSON-encoded figures value.
+        if ($trimmed !== '' && ($trimmed[0] === '[' || $trimmed[0] === '{')) {
+            $decoded = json_decode($trimmed, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+        $out = [];
+        foreach (preg_split('/\r\n|\r|\n/', $text) ?: [] as $line) {
+            if (trim($line) === '') {
+                continue;
+            }
+            $parts = array_map('trim', explode('|', $line));
+            $out[] = [
+                'value'       => $parts[0] ?? '',
+                'label'       => $parts[1] ?? '',
+                'description' => $parts[2] ?? '',
+            ];
+        }
+        return $out;
+    }
+}
+
+if (!function_exists('spark_stats_to_lines')) {
+    /**
+     * Encode a [{value,label,description}] array into the stats `figures`
+     * textarea format — one "value | label | description" line per stat.
+     * The inverse of spark_lines_to_stats(); used by content-import and
+     * spark-puck save when writing programmatically.
+     *
+     * @param mixed $stats
+     */
+    function spark_stats_to_lines($stats): string
+    {
+        if (!is_array($stats)) {
+            return '';
+        }
+        $lines = [];
+        foreach ($stats as $s) {
+            if (!is_array($s)) {
+                continue;
+            }
+            $value = trim((string) ($s['value'] ?? ''));
+            $label = trim((string) ($s['label'] ?? ''));
+            $desc  = trim((string) ($s['description'] ?? ''));
+            $parts = [$value, $label];
+            if ($desc !== '') {
+                $parts[] = $desc;
+            }
+            $lines[] = implode(' | ', $parts);
+        }
+        return implode("\n", $lines);
+    }
+}
+
 if (!function_exists('spark_camel_key')) {
     /**
      * snake_case (Carbon subkey) → camelCase (Puck / Astro prop).
@@ -483,13 +555,11 @@ if (!function_exists('spark_components_to_blocks')) {
                 continue;
             }
             $props = spark_normalize_row($row);
-            // Stats' figures are stored as a JSON string (see the field
-            // definition); decode into the `stats` array the contract wants.
+            // Stats' figures are stored as one-per-line "value | label |
+            // description" text (see the field definition); parse into the
+            // `stats` array the contract wants.
             if ($kind === 'stats') {
-                $decoded = isset($props['figures']) && is_string($props['figures'])
-                    ? json_decode($props['figures'], true)
-                    : ($props['figures'] ?? []);
-                $props['stats'] = is_array($decoded) ? $decoded : [];
+                $props['stats'] = spark_lines_to_stats($props['figures'] ?? '');
                 unset($props['figures']);
             }
             // Pricing tiers store their feature list as one-per-line text

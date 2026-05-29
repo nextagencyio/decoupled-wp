@@ -104,13 +104,12 @@ function row_to_puck(array $row, array $map): ?array
     $props = function_exists('spark_normalize_row')
         ? spark_normalize_row($row)
         : [];
-    // Stats' figures are stored as a JSON string; decode into the
-    // `stats` array the contract expects.
+    // Stats' figures are stored as one-per-line "value | label |
+    // description" text; parse into the `stats` array the contract expects.
     if ($kind === 'stats') {
-        $decoded = isset($props['figures']) && is_string($props['figures'])
-            ? json_decode($props['figures'], true)
-            : ($props['figures'] ?? []);
-        $props['stats'] = is_array($decoded) ? $decoded : [];
+        $props['stats'] = function_exists('spark_lines_to_stats')
+            ? spark_lines_to_stats($props['figures'] ?? '')
+            : [];
         unset($props['figures']);
     }
     // Pricing features are stored one-per-line; expose as string[].
@@ -240,11 +239,14 @@ function save(int $post_id, array $puck_data, array &$warnings): void
             $row_id = $puck_type . '-' . wp_generate_password(12, false, false);
         }
 
-        // Stats' figures are stored as a JSON string (Carbon can't
-        // persist this 6th nested complex programmatically); encode the
-        // incoming `stats` array into the `figures` textarea.
+        // Stats' figures are stored as one-per-line "value | label |
+        // description" text (Carbon can't persist this 6th nested complex
+        // programmatically); encode the incoming `stats` array into the
+        // `figures` textarea.
         if ($kind === 'stats') {
-            $props['figures'] = wp_json_encode(is_array($props['stats'] ?? null) ? $props['stats'] : []);
+            $props['figures'] = function_exists('spark_stats_to_lines')
+                ? spark_stats_to_lines($props['stats'] ?? [])
+                : '';
             unset($props['stats']);
         }
 
