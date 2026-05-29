@@ -46,9 +46,22 @@ function load(int $post_id): array
 
     return [
         'content' => $content,
-        'root'    => ['props' => ['title' => get_the_title($post_id)]],
+        'root'    => ['props' => ['title' => post_title_text($post_id)]],
         'zones'   => new \stdClass(),
     ];
+}
+
+/**
+ * Plain-text post title for the editor. get_the_title() runs the
+ * `the_title` filters, which HTML-encode characters like the en-dash
+ * (– → &#8211;); the Puck title field is a plain text input, so decode
+ * entities back to real characters.
+ */
+function post_title_text(int $post_id): string
+{
+    $post = get_post($post_id);
+    $raw = $post instanceof \WP_Post ? $post->post_title : (string) get_the_title($post_id);
+    return html_entity_decode((string) $raw, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 }
 
 /**
