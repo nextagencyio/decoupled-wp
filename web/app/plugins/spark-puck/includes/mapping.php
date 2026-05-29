@@ -73,41 +73,36 @@ function set_mapping(array $map): void
  */
 function build_default_mapping(): array
 {
-    return [
-        'RichText' => [
-            'component_type' => 'richtext',
-            'label'          => 'Rich text',
-            'fields'         => [
-                'html' => ['sub' => 'html', 'type' => 'text'],
-            ],
-        ],
-        'Gallery' => [
-            'component_type' => 'gallery',
-            'label'          => 'Image gallery',
-            'fields'         => [
-                // images is a nested complex of { src(image), alt(text) }.
-                'images' => ['sub' => 'images', 'type' => 'gallery'],
-            ],
-        ],
-        'Cta' => [
-            'component_type' => 'cta',
-            'label'          => 'Call to action',
-            'fields'         => [
-                'heading'     => ['sub' => 'heading', 'type' => 'string'],
-                'text'        => ['sub' => 'text', 'type' => 'text'],
-                'buttonLabel' => ['sub' => 'button_label', 'type' => 'string'],
-                'buttonUrl'   => ['sub' => 'button_url', 'type' => 'string'],
-            ],
-        ],
-        'Embed' => [
-            'component_type' => 'embed',
-            'label'          => 'Embed',
-            'fields'         => [
-                'embedCode' => ['sub' => 'embed_code', 'type' => 'text'],
-                'caption'   => ['sub' => 'caption', 'type' => 'string'],
-            ],
-        ],
+    // PuckType => kind (Carbon _type). The transform is generic — it
+    // normalizes props via spark_normalize_row and back — so per-field
+    // config is no longer required; this map is the discriminator
+    // (PuckType name ↔ Carbon component kind) plus a human label. The
+    // PuckType names must match the Astro renderer's switch + Puck
+    // component config exactly (the shared contract).
+    $kinds = [
+        'RichText'       => 'richtext',
+        'Gallery'        => 'gallery',
+        'Cta'            => 'cta',
+        'Embed'          => 'embed',
+        'Hero'           => 'hero',
+        'TextBlock'      => 'textblock',
+        'CardGroup'      => 'cardgroup',
+        'SideBySide'     => 'sidebyside',
+        'Accordion'      => 'accordion',
+        'Quote'          => 'quote',
+        'Pricing'        => 'pricing',
+        'LogoCollection' => 'logocollection',
+        'Stats'          => 'stats',
+        'Newsletter'     => 'newsletter',
     ];
+    $map = [];
+    foreach ($kinds as $puck_type => $kind) {
+        $map[$puck_type] = [
+            'component_type' => $kind,
+            'label'          => $puck_type,
+        ];
+    }
+    return $map;
 }
 
 /**

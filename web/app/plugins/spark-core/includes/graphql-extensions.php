@@ -99,9 +99,11 @@ function register_shared_types(): void
     ]);
 
     register_graphql_object_type('SparkComponent', [
-        'description' => __('One complex page component — a gallery, CTA, embed, or a run of rich text. Ordinary prose is bodyHtml, not a component.', 'spark-core'),
+        'description' => __('One page component. `kind` is the component type; `props` is a JSON-encoded object of its data (the full palette — hero, cards, pricing, etc. — is exposed via props so arbitrarily nested data needs no GraphQL type per component). The flat fields below remain for the original four kinds for backward compatibility.', 'spark-core'),
         'fields' => [
-            'kind'        => ['type' => 'String', 'description' => 'richtext | gallery | cta | embed'],
+            'kind'        => ['type' => 'String', 'description' => 'Component type, e.g. richtext | gallery | cta | embed | hero | cardgroup | …'],
+            'props'       => ['type' => 'String', 'description' => 'JSON-encoded object of the component\'s data (camelCase props, nested arrays intact).'],
+            // Legacy flat fields — populated for the original four kinds.
             'html'        => ['type' => 'String', 'description' => 'Rich HTML (richtext components).'],
             'images'      => ['type' => ['list_of' => 'SparkImage'], 'description' => 'Images (gallery components).'],
             'heading'     => ['type' => 'String', 'description' => 'Heading (cta components).'],
@@ -146,7 +148,17 @@ function components_resolver(string $key = 'spark_components'): callable
 {
     return function ($post) use ($key) {
         $raw = carbon_get_post_meta($post->databaseId, $key);
-        return spark_components_to_array($raw);
+        // Generic {kind, props-JSON} for the full palette.
+        $blocks = spark_components_to_blocks($raw);
+        // Merge in the legacy flat fields for the original four kinds so
+        // existing consumers (and the flat GraphQL fields) keep working.
+        $legacy = spark_components_to_array($raw);
+        foreach ($blocks as $i => &$block) {
+            if (isset($legacy[$i]) && ($legacy[$i]['kind'] ?? '') === $block['kind']) {
+                $block += $legacy[$i];
+            }
+        }
+        return $blocks;
     };
 }
 

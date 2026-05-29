@@ -96,6 +96,150 @@ if (!function_exists('spark_make_components_field')) {
                 Field::make('textarea', 'embed_code', __('Embed code / URL', 'spark-core'))
                     ->set_rows(3),
                 Field::make('text', 'caption', __('Caption', 'spark-core')),
+            ])
+            // — Hero: headline section with optional bg image + CTA pair.
+            ->add_fields('hero', __('Hero', 'spark-core'), [
+                Field::make('text', 'eyebrow', __('Eyebrow', 'spark-core')),
+                Field::make('text', 'title', __('Title', 'spark-core')),
+                Field::make('textarea', 'subtitle', __('Subtitle', 'spark-core'))->set_rows(2),
+                Field::make('select', 'layout', __('Layout', 'spark-core'))
+                    ->set_options(['centered' => 'Centered', 'left-aligned' => 'Left aligned'])
+                    ->set_default_value('centered'),
+                Field::make('image', 'background_image', __('Background image', 'spark-core'))->set_value_type('url'),
+                Field::make('text', 'primary_cta_text', __('Primary CTA text', 'spark-core'))->set_width(50),
+                Field::make('text', 'primary_cta_url', __('Primary CTA URL', 'spark-core'))->set_width(50),
+                Field::make('text', 'secondary_cta_text', __('Secondary CTA text', 'spark-core'))->set_width(50),
+                Field::make('text', 'secondary_cta_url', __('Secondary CTA URL', 'spark-core'))->set_width(50),
+            ])
+            // — Text block: eyebrow + title + rich content + optional CTA.
+            ->add_fields('textblock', __('Text block', 'spark-core'), [
+                Field::make('text', 'eyebrow', __('Eyebrow', 'spark-core')),
+                Field::make('text', 'title', __('Title', 'spark-core')),
+                Field::make('rich_text', 'content', __('Content', 'spark-core')),
+                Field::make('select', 'alignment', __('Alignment', 'spark-core'))
+                    ->set_options(['left' => 'Left', 'center' => 'Center'])
+                    ->set_default_value('left'),
+                Field::make('text', 'cta_text', __('CTA text', 'spark-core'))->set_width(50),
+                Field::make('text', 'cta_url', __('CTA URL', 'spark-core'))->set_width(50),
+            ])
+            // — Card group: heading + a grid of cards.
+            ->add_fields('cardgroup', __('Card group', 'spark-core'), [
+                Field::make('text', 'eyebrow', __('Eyebrow', 'spark-core')),
+                Field::make('text', 'title', __('Title', 'spark-core')),
+                Field::make('textarea', 'subtitle', __('Subtitle', 'spark-core'))->set_rows(2),
+                Field::make('select', 'columns', __('Columns', 'spark-core'))
+                    ->set_options(['2' => '2', '3' => '3', '4' => '4'])->set_default_value('3'),
+                Field::make('complex', 'cards', __('Cards', 'spark-core'))
+                    ->set_layout('grid')
+                    ->add_fields([
+                        Field::make('text', 'icon', __('Icon', 'spark-core'))->set_width(50),
+                        Field::make('text', 'title', __('Title', 'spark-core'))->set_width(50),
+                        Field::make('textarea', 'description', __('Description', 'spark-core'))->set_rows(2),
+                        Field::make('text', 'link_text', __('Link text', 'spark-core'))->set_width(50),
+                        Field::make('text', 'link_url', __('Link URL', 'spark-core'))->set_width(50),
+                    ]),
+            ])
+            // — Side by side: text + image with feature list.
+            ->add_fields('sidebyside', __('Side by side', 'spark-core'), [
+                Field::make('text', 'eyebrow', __('Eyebrow', 'spark-core')),
+                Field::make('text', 'title', __('Title', 'spark-core')),
+                Field::make('rich_text', 'content', __('Content', 'spark-core')),
+                Field::make('image', 'image', __('Image', 'spark-core'))->set_value_type('url'),
+                Field::make('select', 'image_position', __('Image position', 'spark-core'))
+                    ->set_options(['left' => 'Left', 'right' => 'Right'])->set_default_value('right'),
+                Field::make('complex', 'features', __('Features', 'spark-core'))
+                    ->set_layout('grid')
+                    ->add_fields([
+                        Field::make('text', 'icon', __('Icon', 'spark-core'))->set_width(33),
+                        Field::make('text', 'title', __('Title', 'spark-core'))->set_width(33),
+                        Field::make('textarea', 'description', __('Description', 'spark-core'))->set_rows(2),
+                    ]),
+                Field::make('text', 'cta_text', __('CTA text', 'spark-core'))->set_width(50),
+                Field::make('text', 'cta_url', __('CTA URL', 'spark-core'))->set_width(50),
+            ])
+            // — Accordion: heading + Q/A items.
+            ->add_fields('accordion', __('Accordion', 'spark-core'), [
+                Field::make('text', 'eyebrow', __('Eyebrow', 'spark-core')),
+                Field::make('text', 'title', __('Title', 'spark-core')),
+                Field::make('textarea', 'subtitle', __('Subtitle', 'spark-core'))->set_rows(2),
+                Field::make('complex', 'items', __('Items', 'spark-core'))
+                    ->add_fields([
+                        Field::make('text', 'question', __('Question', 'spark-core')),
+                        Field::make('rich_text', 'answer', __('Answer', 'spark-core')),
+                    ]),
+            ])
+            // — Quote: testimonials, single or grid.
+            ->add_fields('quote', __('Quote / testimonials', 'spark-core'), [
+                Field::make('text', 'eyebrow', __('Eyebrow', 'spark-core')),
+                Field::make('text', 'title', __('Title', 'spark-core')),
+                Field::make('select', 'layout', __('Layout', 'spark-core'))
+                    ->set_options(['single' => 'Single', 'grid' => 'Grid'])->set_default_value('single'),
+                Field::make('complex', 'testimonials', __('Testimonials', 'spark-core'))
+                    ->add_fields([
+                        Field::make('textarea', 'quote', __('Quote', 'spark-core'))->set_rows(3),
+                        Field::make('text', 'author_name', __('Author name', 'spark-core'))->set_width(50),
+                        Field::make('text', 'author_title', __('Author title', 'spark-core'))->set_width(50),
+                        Field::make('text', 'author_company', __('Author company', 'spark-core'))->set_width(50),
+                        Field::make('text', 'rating', __('Rating (1-5)', 'spark-core'))->set_width(50),
+                        Field::make('image', 'author_image', __('Author image', 'spark-core'))->set_value_type('url'),
+                    ]),
+            ])
+            // — Pricing: tiers, each with a feature list (2-level nest).
+            ->add_fields('pricing', __('Pricing', 'spark-core'), [
+                Field::make('text', 'eyebrow', __('Eyebrow', 'spark-core')),
+                Field::make('text', 'title', __('Title', 'spark-core')),
+                Field::make('textarea', 'subtitle', __('Subtitle', 'spark-core'))->set_rows(2),
+                Field::make('complex', 'tiers', __('Tiers', 'spark-core'))
+                    ->add_fields([
+                        Field::make('text', 'name', __('Name', 'spark-core'))->set_width(50),
+                        Field::make('text', 'price', __('Price', 'spark-core'))->set_width(25),
+                        Field::make('text', 'billing_period', __('Billing period', 'spark-core'))->set_width(25),
+                        Field::make('textarea', 'description', __('Description', 'spark-core'))->set_rows(2),
+                        // Features as one-per-line text, NOT a nested complex:
+                        // Carbon's programmatic setter doesn't reliably persist
+                        // 3-level-deep complex (components → tiers → features).
+                        // The normalizer splits this into a string[] for props.
+                        Field::make('textarea', 'features', __('Features (one per line)', 'spark-core'))->set_rows(4),
+                        Field::make('checkbox', 'is_featured', __('Featured tier', 'spark-core')),
+                        Field::make('text', 'cta_text', __('CTA text', 'spark-core'))->set_width(50),
+                        Field::make('text', 'cta_url', __('CTA URL', 'spark-core'))->set_width(50),
+                    ]),
+            ])
+            // — Logo collection.
+            ->add_fields('logocollection', __('Logo collection', 'spark-core'), [
+                Field::make('text', 'eyebrow', __('Eyebrow', 'spark-core')),
+                Field::make('text', 'title', __('Title', 'spark-core')),
+                Field::make('complex', 'logos', __('Logos', 'spark-core'))
+                    ->set_layout('grid')
+                    ->add_fields([
+                        Field::make('text', 'name', __('Name', 'spark-core')),
+                        Field::make('image', 'image', __('Logo', 'spark-core'))->set_value_type('url'),
+                        Field::make('text', 'url', __('URL', 'spark-core')),
+                    ]),
+            ])
+            // — Stats: a row of figures.
+            ->add_fields('stats', __('Stats', 'spark-core'), [
+                Field::make('text', 'eyebrow', __('Eyebrow', 'spark-core')),
+                Field::make('text', 'title', __('Title', 'spark-core')),
+                Field::make('text', 'background_color', __('Background color', 'spark-core')),
+                Field::make('complex', 'stats', __('Stats', 'spark-core'))
+                    ->set_layout('grid')
+                    ->add_fields([
+                        Field::make('text', 'value', __('Value', 'spark-core'))->set_width(50),
+                        Field::make('text', 'label', __('Label', 'spark-core'))->set_width(50),
+                        Field::make('textarea', 'description', __('Description', 'spark-core'))->set_rows(2),
+                    ]),
+            ])
+            // — Newsletter signup.
+            ->add_fields('newsletter', __('Newsletter', 'spark-core'), [
+                Field::make('text', 'eyebrow', __('Eyebrow', 'spark-core')),
+                Field::make('text', 'title', __('Title', 'spark-core')),
+                Field::make('textarea', 'subtitle', __('Subtitle', 'spark-core'))->set_rows(2),
+                Field::make('text', 'placeholder', __('Input placeholder', 'spark-core'))->set_width(50),
+                Field::make('text', 'button_text', __('Button text', 'spark-core'))->set_width(50),
+                Field::make('select', 'background_color', __('Background', 'spark-core'))
+                    ->set_options(['light' => 'Light', 'dark' => 'Dark', 'gradient' => 'Gradient'])
+                    ->set_default_value('light'),
             ]);
     }
 }
@@ -254,6 +398,105 @@ if (!function_exists('spark_components_to_array')) {
                     ];
                     break;
             }
+        }
+        return $out;
+    }
+}
+
+if (!function_exists('spark_camel_key')) {
+    /**
+     * snake_case (Carbon subkey) → camelCase (Puck / Astro prop).
+     */
+    function spark_camel_key(string $key): string
+    {
+        return lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $key))));
+    }
+}
+
+if (!function_exists('spark_normalize_row')) {
+    /**
+     * Recursively normalize a Carbon complex ROW into a clean assoc
+     * array for JSON exposure: drops Carbon internals (`_type`), camel-
+     * cases keys, and recurses into nested complex values (arrays of
+     * rows). This is the single source of truth shared by the GraphQL
+     * `props` exposure and spark-puck's load transform — so the wire
+     * shape never drifts between read and edit.
+     *
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    function spark_normalize_row(array $row): array
+    {
+        $out = [];
+        foreach ($row as $key => $value) {
+            if ($key === '_type') {
+                continue;
+            }
+            $prop = spark_camel_key((string) $key);
+            if (is_array($value)) {
+                // A list of rows (nested complex) vs. an empty array.
+                $is_rows = $value !== [] && array_is_list($value)
+                    && is_array($value[0] ?? null);
+                if ($is_rows) {
+                    $out[$prop] = array_map(
+                        static fn($r) => is_array($r) ? spark_normalize_row($r) : $r,
+                        $value
+                    );
+                } else {
+                    $out[$prop] = $value;
+                }
+            } else {
+                $out[$prop] = $value;
+            }
+        }
+        return $out;
+    }
+}
+
+if (!function_exists('spark_components_to_blocks')) {
+    /**
+     * Convert a stored components Complex value into a list of
+     * `{ kind, props }` blocks where `props` is a JSON-encoded object
+     * of the row's normalized data. This is the generic exposure that
+     * scales to the full component palette (hero, cards, pricing with
+     * nested tiers/features, …) without a GraphQL type per component.
+     *
+     * @param mixed $raw  carbon_get_post_meta(...) value.
+     * @return array<int, array{kind:string, props:string}>
+     */
+    function spark_components_to_blocks($raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach ($raw as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $kind = (string) ($row['_type'] ?? '');
+            if ($kind === '') {
+                continue;
+            }
+            $props = spark_normalize_row($row);
+            // Pricing tiers store their feature list as one-per-line text
+            // (Carbon can't round-trip 3-level complex via the API). Split
+            // it back into the string[] the frontend contract expects.
+            if ($kind === 'pricing' && isset($props['tiers']) && is_array($props['tiers'])) {
+                foreach ($props['tiers'] as &$tier) {
+                    if (isset($tier['features']) && is_string($tier['features'])) {
+                        $tier['features'] = array_values(array_filter(
+                            array_map('trim', preg_split('/\r\n|\r|\n/', $tier['features']) ?: []),
+                            static fn($s) => $s !== ''
+                        ));
+                    }
+                }
+                unset($tier);
+            }
+            $out[] = [
+                'kind'  => $kind,
+                'props' => (string) wp_json_encode($props),
+            ];
         }
         return $out;
     }

@@ -29,7 +29,6 @@ const ROW_ID_SUB = '_spark_row_id';
 function load(int $post_id): array
 {
     $map = Mapping\mapping();
-    $reverse = Mapping\reverse_map($map);
     $field = Mapping\sections_field();
 
     $rows = function_exists('carbon_get_post_meta')
@@ -39,7 +38,7 @@ function load(int $post_id): array
 
     $content = [];
     foreach ($rows as $row) {
-        $component = row_to_puck($row, $reverse);
+        $component = row_to_puck(is_array($row) ? $row : [], $map);
         if ($component !== null) {
             $content[] = $component;
         }
@@ -55,50 +54,118 @@ function load(int $post_id): array
 /**
  * One Carbon row → one Puck component { type, props }.
  *
+ * Generic: the row's data is normalized to camelCase props via the same
+ * spark-core helper the GraphQL `props` exposure uses (single source of
+ * truth — load and read can't drift). Only the discriminator (`_type` →
+ * PuckType) and the stable row id are handled specially.
+ *
  * @param array<string, mixed> $row
- * @param array<string, mixed> $reverse
+ * @param array<string, array<string, mixed>> $map
  * @return array<string, mixed>|null
  */
-function row_to_puck(array $row, array $reverse): ?array
+function row_to_puck(array $row, array $map): ?array
 {
     $kind = (string) ($row['_type'] ?? '');
-    if (!isset($reverse[$kind])) {
+    if ($kind === '') {
         return null;
     }
-    $puck_type = $reverse[$kind]['puck_type'];
-    $fields = $reverse[$kind]['fields'];
-
-    // Stable row id: reuse a persisted one or synthesize a deterministic
-    // fallback. A persisted id (written on a prior save) keeps editor
-    // identity stable across reorders.
-    $row_id = (string) ($row[ROW_ID_SUB] ?? '');
-    if ($row_id === '') {
-        $row_id = $puck_type . '-' . substr(md5(wp_json_encode($row) ?: $kind), 0, 12);
-    }
-
-    $props = ['id' => $row_id, '_sparkRowId' => $row_id];
-
-    foreach ($fields as $sub => $meta) {
-        $sub = (string) $sub;
-        $prop = $meta['prop'];
-        $type = $meta['type'];
-        $raw = $row[$sub] ?? null;
-
-        if ($type === 'gallery') {
-            $images = [];
-            foreach ((is_array($raw) ? $raw : []) as $img) {
-                $images[] = [
-                    'src' => (string) ($img['src'] ?? ''),
-                    'alt' => (string) ($img['alt'] ?? ''),
-                ];
-            }
-            $props[$prop] = $images;
-        } else {
-            $props[$prop] = is_scalar($raw) ? (string) $raw : '';
+    // PuckType name from the mapping; fall back to PascalCase(kind).
+    $puck_type = null;
+    foreach ($map as $ptype => $config) {
+        if ((string) ($config['component_type'] ?? '') === $kind) {
+            $puck_type = $ptype;
+            break;
         }
     }
+    if ($puck_type === null) {
+        $puck_type = str_replace(' ', '', ucwords(str_replace('_', ' ', $kind)));
+    }
+
+    // Stable row id: reuse the persisted one or synthesize a fallback.
+    $row_id = (string) ($row[ROW_ID_SUB] ?? '');
+    if ($row_id === '') {
+        $row_id = $puck_type . '-' . substr(md5((string) wp_json_encode($row)), 0, 12);
+    }
+
+    // Normalize the row exactly as the GraphQL props exposure does.
+    $props = function_exists('spark_normalize_row')
+        ? spark_normalize_row($row)
+        : [];
+    // Pricing features are stored one-per-line; expose as string[].
+    if ($kind === 'pricing' && isset($props['tiers']) && is_array($props['tiers'])) {
+        foreach ($props['tiers'] as &$tier) {
+            if (isset($tier['features']) && is_string($tier['features'])) {
+                $tier['features'] = split_lines($tier['features']);
+            }
+        }
+        unset($tier);
+    }
+    $props['id'] = $row_id;
+    $props['_sparkRowId'] = $row_id;
 
     return ['type' => $puck_type, 'props' => $props];
+}
+
+/**
+ * Split a one-per-line text value into a trimmed, non-empty list.
+ *
+ * @return array<int, string>
+ */
+function split_lines(string $text): array
+{
+    return array_values(array_filter(
+        array_map('trim', preg_split('/\r\n|\r|\n/', $text) ?: []),
+        static fn($s) => $s !== ''
+    ));
+}
+
+/**
+ * camelCase (Puck prop) → snake_case (Carbon subkey).
+ */
+function snake_key(string $key): string
+{
+    return strtolower(preg_replace('/([a-z0-9])([A-Z])/', '$1_$2', $key) ?? $key);
+}
+
+/**
+ * Recursively convert a Puck props object → a Carbon row data array:
+ * snake_case keys, recurse into nested arrays of objects, sideload any
+ * value that looks like an image URL field. Drops Puck-only keys
+ * (id, _sparkRowId, type).
+ *
+ * @param array<string, mixed> $props
+ * @param array<int, string> $warnings
+ * @return array<string, mixed>
+ */
+function puck_props_to_row(array $props, array &$warnings): array
+{
+    $out = [];
+    foreach ($props as $key => $value) {
+        if (in_array($key, ['id', '_sparkRowId', 'type'], true)) {
+            continue;
+        }
+        $sub = snake_key((string) $key);
+
+        if (is_array($value)) {
+            // List of objects (nested repeatable) → recurse each row.
+            if ($value !== [] && array_is_list($value) && is_array($value[0] ?? null)) {
+                $out[$sub] = array_map(
+                    fn($r) => is_array($r) ? puck_props_to_row($r, $warnings) : $r,
+                    $value
+                );
+            } else {
+                // A plain list (e.g. pricing features string[]) → store
+                // one-per-line text for Carbon round-trip safety.
+                $out[$sub] = implode("\n", array_map('strval', $value));
+            }
+        } elseif (is_string($value) && str_starts_with($value, 'http')
+            && preg_match('/\.(jpe?g|png|gif|webp|svg|avif)(\?|$)/i', $value)) {
+            $out[$sub] = maybe_sideload($value, $warnings);
+        } else {
+            $out[$sub] = is_scalar($value) ? (string) $value : $value;
+        }
+    }
+    return $out;
 }
 
 /**
@@ -136,11 +203,14 @@ function save(int $post_id, array $puck_data, array &$warnings): void
         }
         $puck_type = (string) ($component['type'] ?? '');
         $props = is_array($component['props'] ?? null) ? $component['props'] : [];
-        if (!isset($map[$puck_type])) {
-            continue; // unknown component type — skip
+
+        // PuckType → kind (Carbon _type). Fall back to snake_case(type).
+        $kind = isset($map[$puck_type]['component_type'])
+            ? (string) $map[$puck_type]['component_type']
+            : snake_key($puck_type);
+        if ($kind === '') {
+            continue;
         }
-        $config = $map[$puck_type];
-        $kind = (string) $config['component_type'];
 
         // Resolve / mint the row id (update vs create).
         $row_id = (string) ($props['_sparkRowId'] ?? $props['id'] ?? '');
@@ -148,32 +218,12 @@ function save(int $post_id, array $puck_data, array &$warnings): void
             $row_id = $puck_type . '-' . wp_generate_password(12, false, false);
         }
 
-        $row = ['_type' => $kind, ROW_ID_SUB => $row_id];
-
-        foreach (($config['fields'] ?? []) as $prop => $fieldcfg) {
-            $sub = (string) $fieldcfg['sub'];
-            $type = (string) $fieldcfg['type'];
-            $value = $props[$prop] ?? '';
-
-            if ($type === 'gallery') {
-                $images = [];
-                foreach ((is_array($value) ? $value : []) as $img) {
-                    if (!is_array($img)) {
-                        continue;
-                    }
-                    $src = (string) ($img['src'] ?? '');
-                    $src = maybe_sideload($src, $warnings);
-                    if ($src !== '') {
-                        $images[] = ['src' => $src, 'alt' => (string) ($img['alt'] ?? '')];
-                    }
-                }
-                $row[$sub] = $images;
-            } elseif ($type === 'image') {
-                $row[$sub] = maybe_sideload((string) $value, $warnings);
-            } else {
-                $row[$sub] = is_scalar($value) ? (string) $value : '';
-            }
-        }
+        // Generic prop → Carbon row conversion (handles nested
+        // repeatables + image sideload). Pricing features arrive as a
+        // string[] and are stored one-per-line by puck_props_to_row.
+        $row = puck_props_to_row($props, $warnings);
+        $row['_type'] = $kind;
+        $row[ROW_ID_SUB] = $row_id;
 
         $out[] = $row;
     }
