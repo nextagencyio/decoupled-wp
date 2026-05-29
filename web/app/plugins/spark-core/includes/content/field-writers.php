@@ -164,11 +164,19 @@ function gallery_rows($value, array $media_table, array $spec): array
 
 /**
  * components: complex rows discriminated by `_type`, sub-fields keyed
- * per component type. Matches spark_make_components_field():
- *   richtext → { html }
- *   gallery  → { images: [ { src, alt } ] }
- *   cta      → { heading, text, button_label, button_url }
- *   embed    → { embed_code, caption }
+ * per component type. Matches spark_make_components_field() — the full
+ * 10-kind palette. Each envelope component is `{ type, ...props }`;
+ * nested repeatables (cards, tiers, logos, testimonials, features,
+ * accordion items, stats) arrive as inline arrays of objects.
+ *
+ * Image fields are stored as URL strings (value_type 'url'); a `media`
+ * ref or `url`/`src` is resolved via resolve_image_value. Two storage
+ * quirks match the Carbon field definitions:
+ *   - stats `figures` is a JSON-string textarea (Carbon can't persist
+ *     this 6th nested complex programmatically) → encode the incoming
+ *     `stats` array as JSON.
+ *   - pricing tier `features` is one-per-line text (Carbon can't persist
+ *     3-level complex) → join the incoming string[] with newlines.
  *
  * @param mixed $value
  * @param array<string, int> $media_table
@@ -179,7 +187,6 @@ function component_rows($value, array $media_table): array
     if (!is_array($value)) {
         return [];
     }
-    $img_spec = ['value_type' => 'url'];
     $rows = [];
 
     foreach ($value as $row) {
@@ -187,48 +194,269 @@ function component_rows($value, array $media_table): array
             continue;
         }
         $type = (string) ($row['type'] ?? '');
-        switch ($type) {
-            case 'richtext':
-                $rows[] = ['_type' => 'richtext', 'html' => (string) ($row['html'] ?? $row['spark_richtext_body'] ?? '')];
-                break;
-
-            case 'gallery':
-                $images = [];
-                $src_list = is_array($row['images'] ?? null) ? $row['images'] : [];
-                foreach ($src_list as $img) {
-                    $alt = is_array($img) ? (string) ($img['alt'] ?? '') : '';
-                    $src_val = is_array($img) ? ($img['src'] ?? $img['media'] ?? $img['url'] ?? null) : $img;
-                    if (is_array($img) && isset($img['media'])) {
-                        $src_val = ['media' => $img['media']];
-                    }
-                    $images[] = [
-                        'src' => (string) (resolve_image_value($src_val, $media_table, $img_spec) ?? ''),
-                        'alt' => $alt,
-                    ];
-                }
-                $rows[] = ['_type' => 'gallery', 'images' => $images];
-                break;
-
-            case 'cta':
-                $rows[] = [
-                    '_type'        => 'cta',
-                    'heading'      => (string) ($row['heading'] ?? ''),
-                    'text'         => (string) ($row['text'] ?? ''),
-                    'button_label' => (string) ($row['button_label'] ?? $row['spark_cta_label'] ?? ''),
-                    'button_url'   => (string) ($row['button_url'] ?? $row['spark_cta_url'] ?? ''),
-                ];
-                break;
-
-            case 'embed':
-                $rows[] = [
-                    '_type'      => 'embed',
-                    'embed_code' => (string) ($row['embed_code'] ?? ''),
-                    'caption'    => (string) ($row['caption'] ?? ''),
-                ];
-                break;
+        $built = build_component_row($type, $row, $media_table);
+        if ($built !== null) {
+            $rows[] = $built;
         }
     }
     return $rows;
+}
+
+/**
+ * Build a single Carbon component row from an envelope component.
+ *
+ * @param array<string, mixed> $row
+ * @param array<string, int> $media_table
+ * @return array<string, mixed>|null
+ */
+function build_component_row(string $type, array $row, array $media_table): ?array
+{
+    $img_spec = ['value_type' => 'url'];
+    $img = fn($v) => (string) (resolve_image_value(coerce_image($v), $media_table, $img_spec) ?? '');
+
+    switch ($type) {
+        case 'richtext':
+            return ['_type' => 'richtext', 'html' => (string) ($row['html'] ?? $row['spark_richtext_body'] ?? '')];
+
+        case 'gallery':
+            $images = [];
+            foreach ((is_array($row['images'] ?? null) ? $row['images'] : []) as $g) {
+                $alt = is_array($g) ? (string) ($g['alt'] ?? '') : '';
+                $src = is_array($g) ? ($g['src'] ?? $g['media'] ?? $g['url'] ?? null) : $g;
+                $images[] = ['src' => $img($src), 'alt' => $alt];
+            }
+            return ['_type' => 'gallery', 'images' => $images];
+
+        case 'cta':
+            return [
+                '_type'        => 'cta',
+                'heading'      => (string) ($row['heading'] ?? ''),
+                'text'         => (string) ($row['text'] ?? ''),
+                'button_label' => (string) ($row['button_label'] ?? $row['spark_cta_label'] ?? ''),
+                'button_url'   => (string) ($row['button_url'] ?? $row['spark_cta_url'] ?? ''),
+            ];
+
+        case 'embed':
+            return [
+                '_type'      => 'embed',
+                'embed_code' => (string) ($row['embed_code'] ?? ''),
+                'caption'    => (string) ($row['caption'] ?? ''),
+            ];
+
+        case 'hero':
+            return [
+                '_type'              => 'hero',
+                'eyebrow'            => (string) ($row['eyebrow'] ?? ''),
+                'title'              => (string) ($row['title'] ?? ''),
+                'subtitle'           => (string) ($row['subtitle'] ?? ''),
+                'layout'             => (string) ($row['layout'] ?? 'centered'),
+                'background_image'   => $img($row['background_image'] ?? null),
+                'primary_cta_text'   => (string) ($row['primary_cta_text'] ?? ''),
+                'primary_cta_url'    => (string) ($row['primary_cta_url'] ?? ''),
+                'secondary_cta_text' => (string) ($row['secondary_cta_text'] ?? ''),
+                'secondary_cta_url'  => (string) ($row['secondary_cta_url'] ?? ''),
+            ];
+
+        case 'textblock':
+            return [
+                '_type'     => 'textblock',
+                'eyebrow'   => (string) ($row['eyebrow'] ?? ''),
+                'title'     => (string) ($row['title'] ?? ''),
+                'content'   => (string) ($row['content'] ?? ''),
+                'alignment' => (string) ($row['alignment'] ?? 'left'),
+                'cta_text'  => (string) ($row['cta_text'] ?? ''),
+                'cta_url'   => (string) ($row['cta_url'] ?? ''),
+            ];
+
+        case 'cardgroup':
+            $cards = [];
+            foreach ((is_array($row['cards'] ?? null) ? $row['cards'] : []) as $c) {
+                if (!is_array($c)) {
+                    continue;
+                }
+                $cards[] = [
+                    'icon'        => (string) ($c['icon'] ?? ''),
+                    'title'       => (string) ($c['title'] ?? ''),
+                    'description' => (string) ($c['description'] ?? ''),
+                    'link_text'   => (string) ($c['link_text'] ?? ''),
+                    'link_url'    => (string) ($c['link_url'] ?? ''),
+                ];
+            }
+            return [
+                '_type'    => 'cardgroup',
+                'eyebrow'  => (string) ($row['eyebrow'] ?? ''),
+                'title'    => (string) ($row['title'] ?? ''),
+                'subtitle' => (string) ($row['subtitle'] ?? ''),
+                'columns'  => (string) ($row['columns'] ?? '3'),
+                'cards'    => $cards,
+            ];
+
+        case 'sidebyside':
+            $features = [];
+            foreach ((is_array($row['features'] ?? null) ? $row['features'] : []) as $f) {
+                if (!is_array($f)) {
+                    continue;
+                }
+                $features[] = [
+                    'icon'        => (string) ($f['icon'] ?? ''),
+                    'title'       => (string) ($f['title'] ?? ''),
+                    'description' => (string) ($f['description'] ?? ''),
+                ];
+            }
+            return [
+                '_type'          => 'sidebyside',
+                'eyebrow'        => (string) ($row['eyebrow'] ?? ''),
+                'title'          => (string) ($row['title'] ?? ''),
+                'content'        => (string) ($row['content'] ?? ''),
+                'image'          => $img($row['image'] ?? null),
+                'image_position' => (string) ($row['image_position'] ?? 'right'),
+                'features'       => $features,
+                'cta_text'       => (string) ($row['cta_text'] ?? ''),
+                'cta_url'        => (string) ($row['cta_url'] ?? ''),
+            ];
+
+        case 'accordion':
+            $items = [];
+            foreach ((is_array($row['items'] ?? null) ? $row['items'] : []) as $i) {
+                if (!is_array($i)) {
+                    continue;
+                }
+                $items[] = [
+                    'question' => (string) ($i['question'] ?? ''),
+                    'answer'   => (string) ($i['answer'] ?? ''),
+                ];
+            }
+            return [
+                '_type'    => 'accordion',
+                'eyebrow'  => (string) ($row['eyebrow'] ?? ''),
+                'title'    => (string) ($row['title'] ?? ''),
+                'subtitle' => (string) ($row['subtitle'] ?? ''),
+                'items'    => $items,
+            ];
+
+        case 'quote':
+            $testimonials = [];
+            foreach ((is_array($row['testimonials'] ?? null) ? $row['testimonials'] : []) as $t) {
+                if (!is_array($t)) {
+                    continue;
+                }
+                $testimonials[] = [
+                    'quote'          => (string) ($t['quote'] ?? ''),
+                    'author_name'    => (string) ($t['author_name'] ?? ''),
+                    'author_title'   => (string) ($t['author_title'] ?? ''),
+                    'author_company' => (string) ($t['author_company'] ?? ''),
+                    'rating'         => (string) ($t['rating'] ?? ''),
+                    'author_image'   => $img($t['author_image'] ?? null),
+                ];
+            }
+            return [
+                '_type'        => 'quote',
+                'eyebrow'      => (string) ($row['eyebrow'] ?? ''),
+                'title'        => (string) ($row['title'] ?? ''),
+                'layout'       => (string) ($row['layout'] ?? 'single'),
+                'testimonials' => $testimonials,
+            ];
+
+        case 'pricing':
+            $tiers = [];
+            foreach ((is_array($row['tiers'] ?? null) ? $row['tiers'] : []) as $t) {
+                if (!is_array($t)) {
+                    continue;
+                }
+                $feat = is_array($t['features'] ?? null) ? $t['features'] : [];
+                $tiers[] = [
+                    'name'           => (string) ($t['name'] ?? ''),
+                    'price'          => (string) ($t['price'] ?? ''),
+                    'billing_period' => (string) ($t['billing_period'] ?? ''),
+                    'description'    => (string) ($t['description'] ?? ''),
+                    // One-per-line text; normalizer splits back to string[].
+                    'features'       => implode("\n", array_map('strval', $feat)),
+                    'is_featured'    => !empty($t['is_featured']) ? 'yes' : '',
+                    'cta_text'       => (string) ($t['cta_text'] ?? ''),
+                    'cta_url'        => (string) ($t['cta_url'] ?? ''),
+                ];
+            }
+            return [
+                '_type'    => 'pricing',
+                'eyebrow'  => (string) ($row['eyebrow'] ?? ''),
+                'title'    => (string) ($row['title'] ?? ''),
+                'subtitle' => (string) ($row['subtitle'] ?? ''),
+                'tiers'    => $tiers,
+            ];
+
+        case 'logocollection':
+            $logos = [];
+            foreach ((is_array($row['logos'] ?? null) ? $row['logos'] : []) as $l) {
+                if (!is_array($l)) {
+                    continue;
+                }
+                $logos[] = [
+                    'name'  => (string) ($l['name'] ?? ''),
+                    'image' => $img($l['image'] ?? null),
+                    'url'   => (string) ($l['url'] ?? ''),
+                ];
+            }
+            return [
+                '_type'   => 'logocollection',
+                'eyebrow' => (string) ($row['eyebrow'] ?? ''),
+                'title'   => (string) ($row['title'] ?? ''),
+                'logos'   => $logos,
+            ];
+
+        case 'stats':
+            // Figures are stored as a JSON string (Carbon can't persist
+            // this nested complex programmatically). Encode the incoming
+            // stats array; the normalizer decodes it back to `stats`.
+            $figures = [];
+            foreach ((is_array($row['stats'] ?? null) ? $row['stats'] : []) as $s) {
+                if (!is_array($s)) {
+                    continue;
+                }
+                $figures[] = [
+                    'value'       => (string) ($s['value'] ?? ''),
+                    'label'       => (string) ($s['label'] ?? ''),
+                    'description' => (string) ($s['description'] ?? ''),
+                ];
+            }
+            return [
+                '_type'            => 'stats',
+                'eyebrow'          => (string) ($row['eyebrow'] ?? ''),
+                'title'            => (string) ($row['title'] ?? ''),
+                'background_color' => (string) ($row['background_color'] ?? ''),
+                'figures'          => (string) wp_json_encode($figures),
+            ];
+
+        case 'newsletter':
+            return [
+                '_type'            => 'newsletter',
+                'eyebrow'          => (string) ($row['eyebrow'] ?? ''),
+                'title'            => (string) ($row['title'] ?? ''),
+                'subtitle'         => (string) ($row['subtitle'] ?? ''),
+                'placeholder'      => (string) ($row['placeholder'] ?? ''),
+                'button_text'      => (string) ($row['button_text'] ?? ''),
+                'background_color' => (string) ($row['background_color'] ?? 'light'),
+            ];
+    }
+    return null;
+}
+
+/**
+ * Coerce an envelope image value into the shape resolve_image_value
+ * accepts: a `{media: ref}` wrapper, an `{url}`/`{src}` object, or a
+ * plain URL string.
+ *
+ * @param mixed $v
+ * @return mixed
+ */
+function coerce_image($v)
+{
+    if (is_array($v)) {
+        if (isset($v['media'])) {
+            return ['media' => $v['media']];
+        }
+        return $v['url'] ?? $v['src'] ?? null;
+    }
+    return $v;
 }
 
 /**

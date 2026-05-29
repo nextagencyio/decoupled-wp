@@ -100,6 +100,17 @@ function default_model(): array
                             ],
                         ],
                     ],
+                    [
+                        'label'  => 'Components',
+                        'fields' => [
+                            [
+                                'type'      => 'preset',
+                                'preset'    => 'components',
+                                'key'       => 'spark_components',
+                                'help_text' => 'Optional. Build a landing page from the component palette (hero, cards, pricing, testimonials, …) or interleave galleries / CTAs / embeds with the body.',
+                            ],
+                        ],
+                    ],
                 ],
             ],
             [

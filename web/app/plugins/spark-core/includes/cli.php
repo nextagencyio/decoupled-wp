@@ -190,6 +190,8 @@ class Model_Command
  *   wp spark content example [--pretty]      print a valid envelope
  *   wp spark content validate <file.json|->  validate, don't write
  *   wp spark content import <file.json|->     validate + import
+ *   wp spark content seed [<name>]            import a bundled seed
+ *   wp spark content seeds                    list bundled seeds
  */
 class Content_Command
 {
@@ -269,6 +271,73 @@ class Content_Command
             $s['posts']['updated'] ?? 0
         ));
         \WP_CLI::success('Content import complete.');
+    }
+
+    /**
+     * Import a content seed bundled with the plugin (seed/<name>.json).
+     *
+     * The starter-content analogue of `wp spark model use`: a fresh
+     * tenant runs this to populate the demo landing page so the paired
+     * Astro frontend looks identical to the Drupal `decoupled-components`
+     * starter out of the box.
+     *
+     * ## OPTIONS
+     *
+     * [<name>]
+     * : The bundled seed name (without .json). Defaults to `launchpad`.
+     *
+     * @when after_wp_load
+     */
+    public function seed($args): void
+    {
+        $name = preg_replace('/[^a-z0-9_-]/', '', strtolower((string) ($args[0] ?? 'launchpad')));
+        $path = SPARK_CORE_DIR . 'seed/' . $name . '.json';
+        if (!is_file($path)) {
+            \WP_CLI::error("No bundled seed '{$name}'. Run `wp spark content seeds`.");
+        }
+
+        $envelope = $this->read_json($path);
+        $result = \Spark\Core\Content\import_envelope($envelope);
+
+        if (!$result['ok']) {
+            foreach ($result['errors'] as $e) {
+                \WP_CLI::warning($e);
+            }
+            \WP_CLI::error("Seed '{$name}' rejected — nothing imported.");
+        }
+
+        foreach ($result['warnings'] as $w) {
+            \WP_CLI::warning($w);
+        }
+
+        $s = $result['summary'];
+        \WP_CLI::log(sprintf(
+            'terms: +%d ~%d | media: %d | posts: +%d ~%d',
+            $s['terms']['created'] ?? 0,
+            $s['terms']['updated'] ?? 0,
+            $s['media']['imported'] ?? 0,
+            $s['posts']['created'] ?? 0,
+            $s['posts']['updated'] ?? 0
+        ));
+        \WP_CLI::success("Seed '{$name}' imported.");
+    }
+
+    /**
+     * List the content seeds bundled with the plugin (seed/*.json).
+     *
+     * @when after_wp_load
+     */
+    public function seeds(): void
+    {
+        $dir = SPARK_CORE_DIR . 'seed';
+        $files = is_dir($dir) ? glob($dir . '/*.json') : [];
+        if (!$files) {
+            \WP_CLI::line('(no bundled seeds)');
+            return;
+        }
+        foreach ($files as $f) {
+            \WP_CLI::line(basename($f, '.json'));
+        }
     }
 
     /**
