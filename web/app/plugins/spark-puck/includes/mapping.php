@@ -89,7 +89,11 @@ function build_default_mapping(): array
         'CardGroup'      => 'cardgroup',
         'SideBySide'     => 'sidebyside',
         'Accordion'      => 'accordion',
-        'Quote'          => 'quote',
+        // PuckType is "Testimonials" (the editor config / Astro renderer
+        // name); the Carbon kind is "quote". Names must match the Puck
+        // component config key exactly or the editor shows
+        // "No configuration for …".
+        'Testimonials'   => 'quote',
         'Pricing'        => 'pricing',
         'LogoCollection' => 'logocollection',
         'Stats'          => 'stats',
