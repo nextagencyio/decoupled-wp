@@ -1,0 +1,23 @@
+name: decoupled-wp-spark
+type: wordpress
+docroot: web
+php_version: "8.3"
+webserver_type: nginx-fpm
+xdebug_enabled: false
+database:
+  type: mariadb
+  version: "10.11"
+use_dns_when_possible: true
+composer_version: "2"
+web_environment:
+  - SPARK_FRONTEND_URL=http://localhost:4321
+  # SPARK_AUDIT_URL — the Compliance Dashboard reads audit JSON from
+  # <this>/audits/<scanner>/latest.json. That JSON is published only by
+  # deployed CI to the PRODUCTION frontend, so point this at the live
+  # demo domain (e.g. https://<slug>.sparkdemo.cloud) once it exists —
+  # NOT at localhost:4321, which never has audit JSON. Until then the
+  # dashboard correctly shows "pending".
+  - SPARK_AUDIT_URL=https://example.invalid
+  - SPARK_REVALIDATE_BYPASS_TOKEN=spark-revalidate-dev-token
+  - WORDPRESS_PREVIEW_SECRET=spark_preview_dev_secret
+corepack_enable: false

@@ -1,0 +1,26 @@
+# Composer
+/vendor/
+# WordPress core (Composer-managed)
+/web/wp/
+# Bedrock content — only the spark-core plugin is tracked
+/web/app/mu-plugins/
+/web/app/plugins/*
+!/web/app/plugins/spark-core/
+/web/app/themes/*
+!/web/app/themes/.gitkeep
+/web/app/uploads/
+/web/app/upgrade/
+/web/app/cache/
+# Carbon Fields assets copied in by the composer post-install hook
+/web/app/plugins/spark-core/vendor/
+# Environment
+/.env
+# DDEV
+/.ddev/.*
+!/.ddev/config.yaml
+# WP debug log
+/web/app/debug.log
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

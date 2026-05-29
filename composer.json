@@ -1,0 +1,70 @@
+{
+  "name": "simplespark/decoupled-wp-spark",
+  "description": "Decoupled WordPress starter — Bedrock layout, Composer-managed, Carbon Fields + WPGraphQL, headless preview, and an audit Compliance Dashboard. Pairs with the astro-spark frontend starter.",
+  "type": "project",
+  "license": "MIT",
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://wpackagist.org",
+      "only": ["wpackagist-plugin/*", "wpackagist-theme/*"]
+    },
+    {
+      "type": "package",
+      "package": {
+        "name": "wp-graphql/wp-graphql-jwt-authentication",
+        "version": "0.7.0",
+        "type": "wordpress-plugin",
+        "dist": {
+          "url": "https://github.com/wp-graphql/wp-graphql-jwt-authentication/archive/refs/tags/v0.7.0.zip",
+          "type": "zip"
+        },
+        "require": { "composer/installers": "^1.0 || ^2.0" }
+      }
+    }
+  ],
+  "require": {
+    "php": ">=8.1",
+    "composer/installers": "^2.2",
+    "htmlburger/carbon-fields": "^3.6",
+    "roots/wordpress": "^7.0",
+    "roots/wp-config": "^1.0",
+    "vlucas/phpdotenv": "^5.6",
+    "wp-graphql/wp-graphql-jwt-authentication": "^0.7",
+    "wpackagist-plugin/classic-editor": "^1.6",
+    "wpackagist-plugin/two-factor": "^0.16.0",
+    "wpackagist-plugin/wp-graphql": "^2.0",
+    "wpackagist-theme/twentytwentyfive": "^1.0"
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "preferred-install": "dist",
+    "sort-packages": true,
+    "allow-plugins": {
+      "composer/installers": true,
+      "roots/wordpress-core-installer": true
+    }
+  },
+  "extra": {
+    "wordpress-install-dir": "web/wp",
+    "installer-paths": {
+      "web/app/mu-plugins/{$name}/": ["type:wordpress-muplugin"],
+      "web/app/plugins/{$name}/": [
+        "type:wordpress-plugin",
+        "htmlburger/carbon-fields"
+      ],
+      "web/app/themes/{$name}/": ["type:wordpress-theme"]
+    }
+  },
+  "scripts": {
+    "post-install-cmd": ["@copy-carbon-fields-assets"],
+    "post-update-cmd": ["@copy-carbon-fields-assets"],
+    "copy-carbon-fields-assets": [
+      "mkdir -p web/app/plugins/spark-core/vendor/carbon-fields/build",
+      "cp -r vendor/htmlburger/carbon-fields/build/classic web/app/plugins/spark-core/vendor/carbon-fields/build/ 2>/dev/null || true",
+      "cp -r vendor/htmlburger/carbon-fields/core web/app/plugins/spark-core/vendor/carbon-fields/ 2>/dev/null || true"
+    ]
+  }
+}

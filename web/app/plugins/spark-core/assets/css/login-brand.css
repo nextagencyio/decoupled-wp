@@ -1,0 +1,153 @@
+/* Spark Core — branded WordPress login screen.
+ *
+ * Neutral slate palette, driven entirely by CSS custom properties so a
+ * project recolors by overriding --spark-* tokens. The logo slot reads
+ * --spark-logo-url, which brand-admin.php sets to `none` when no brand
+ * image is present — in that case the default WordPress wordmark area
+ * just stays blank, nothing breaks.
+ */
+
+:root {
+  --spark-ink-900:    #1a1d21;
+  --spark-ink-800:    #25292e;
+  --spark-ink-700:    #323840;
+  --spark-brand-500:  #3a6ea5;
+  --spark-brand-300:  #8fb3d4;
+  --spark-accent-500: #4a9d6e;
+  --spark-surface-50: #f6f7f8;
+  --spark-text-900:   #1a1d21;
+}
+
+body.login {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 20% 12%, rgb(58 110 165 / 0.40), transparent 32rem),
+    radial-gradient(circle at 85% 82%, rgb(74 157 110 / 0.26), transparent 30rem),
+    var(--spark-ink-900);
+  color: var(--spark-surface-50);
+}
+
+.login #login {
+  width: min(360px, calc(100vw - 40px));
+  padding-top: 7vh;
+}
+
+/* Logo plate — only renders artwork when --spark-logo-url is set to a
+   real url() by brand-admin.php; otherwise it falls back to `none`. */
+.login h1 a {
+  width: 200px;
+  max-width: 100%;
+  height: 76px;
+  margin-bottom: 20px;
+  background-color: #fff;
+  background-image: var(--spark-logo-url, none);
+  background-position: center;
+  background-size: 150px auto;
+  background-repeat: no-repeat;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.22);
+}
+
+/* When a real brand image exists, brand-admin.php adds `.has-logo` to
+   the login <body>. Most brand marks are compact (often square), so
+   the plate becomes a tight, roughly square card sized to the logo —
+   `contain` with padding, no wide empty white margins. Recolor or
+   resize per project if the logo is strongly horizontal. */
+.login.has-logo h1 a {
+  width: 84px;
+  height: 84px;
+  padding: 16px;
+  background-size: 52px auto;
+}
+
+.login form {
+  border: 0;
+  border-top: 4px solid var(--spark-accent-500);
+  border-radius: 8px;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 0.30);
+}
+
+.login label {
+  color: var(--spark-text-900);
+}
+
+.login form .input,
+.login input[type="password"],
+.login input[type="text"] {
+  border-color: #b4babc;
+  border-radius: 4px;
+}
+
+.login form .input:focus,
+.login input[type="password"]:focus,
+.login input[type="text"]:focus {
+  border-color: var(--spark-brand-500);
+  box-shadow: 0 0 0 1px var(--spark-brand-500);
+}
+
+.wp-core-ui .button-primary {
+  background: var(--spark-brand-500);
+  border-color: var(--spark-ink-700);
+  color: #fff;
+  font-weight: 600;
+}
+
+.wp-core-ui .button-primary:hover,
+.wp-core-ui .button-primary:focus {
+  background: var(--spark-ink-700);
+  border-color: var(--spark-ink-800);
+  color: #fff;
+}
+
+.wp-core-ui .button-primary:focus {
+  box-shadow: 0 0 0 1px #fff, 0 0 0 3px var(--spark-brand-300);
+}
+
+.login #nav,
+.login #backtoblog,
+.login .privacy-policy-page-link,
+.login #nav a,
+.login #backtoblog a,
+.login .privacy-policy-page-link a {
+  color: var(--spark-surface-50);
+}
+
+.login #nav a:hover,
+.login #nav a:focus,
+.login #backtoblog a:hover,
+.login #backtoblog a:focus,
+.login .privacy-policy-page-link a:hover,
+.login .privacy-policy-page-link a:focus {
+  color: var(--spark-brand-300);
+}
+
+.login .message,
+.login .notice,
+.login .success {
+  border-left-color: var(--spark-accent-500);
+  color: var(--spark-text-900);
+}
+
+.login .message a,
+.login .notice a,
+.login .success a {
+  color: var(--spark-brand-500);
+}
+
+/* Show/hide-password toggle + any element that falls back to WordPress's
+   default admin-blue (#3858E9): pull it onto the brand primary so no
+   stray off-brand blue survives on a branded login. */
+.login {
+  --wp-admin-theme-color: var(--spark-brand-500);
+  --wp-admin-theme-color-darker-10: var(--spark-brand-500);
+  --wp-admin-theme-color-darker-20: var(--spark-ink-700);
+}
+.login .wp-hide-pw,
+.login .wp-hide-pw:hover,
+.login .wp-hide-pw:focus,
+.login .wp-hide-pw .dashicons {
+  color: var(--spark-brand-500);
+}
+.login .wp-hide-pw:focus {
+  box-shadow: 0 0 0 1px #fff, 0 0 0 3px var(--spark-brand-300);
+}
