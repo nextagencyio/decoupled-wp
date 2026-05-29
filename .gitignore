@@ -2,10 +2,11 @@
 /vendor/
 # WordPress core (Composer-managed)
 /web/wp/
-# Bedrock content — only the spark-core plugin is tracked
+# Bedrock content — only the spark-* first-party plugins are tracked
 /web/app/mu-plugins/
 /web/app/plugins/*
 !/web/app/plugins/spark-core/
+!/web/app/plugins/spark-puck/
 /web/app/themes/*
 !/web/app/themes/.gitkeep
 /web/app/uploads/
