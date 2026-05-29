@@ -53,5 +53,7 @@ require_once SPARK_PUCK_DIR . 'includes/mapping.php';
 require_once SPARK_PUCK_DIR . 'includes/transform.php';
 require_once SPARK_PUCK_DIR . 'includes/token.php';
 require_once SPARK_PUCK_DIR . 'includes/rest.php';
+require_once SPARK_PUCK_DIR . 'includes/admin.php';
 
 add_action('rest_api_init', __NAMESPACE__ . '\\Rest\\register_routes');
+add_action('admin_init', __NAMESPACE__ . '\\Admin\\init');

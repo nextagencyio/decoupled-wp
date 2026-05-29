@@ -44,7 +44,10 @@ function default_model(): array
                 'graphql_plural_name' => 'landings',
                 'menu_icon'           => 'dashicons-layout',
                 'menu_position'       => 19,
-                'supports'            => ['title', 'editor', 'thumbnail', 'revisions', 'page-attributes'],
+                // No 'editor': a landing page is built entirely from the
+                // component palette (Design Studio / the Components tab),
+                // so the WYSIWYG body would only confuse authors.
+                'supports'            => ['title', 'thumbnail', 'revisions', 'page-attributes'],
             ],
             'spark_resource' => [
                 'labels' => [

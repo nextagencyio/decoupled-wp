@@ -29,14 +29,14 @@ function register_routes(): void
         'methods'             => 'GET',
         'callback'            => __NAMESPACE__ . '\\load',
         'permission_callback' => __NAMESPACE__ . '\\can_edit',
-        'args'                => ['id' => ['validate_callback' => 'is_numeric']],
+        'args'                => ['id' => ['validate_callback' => fn($v) => is_numeric($v)]],
     ]);
 
     register_rest_route(NS, '/save/(?P<id>\d+)', [
         'methods'             => 'POST',
         'callback'            => __NAMESPACE__ . '\\save',
         'permission_callback' => __NAMESPACE__ . '\\can_edit',
-        'args'                => ['id' => ['validate_callback' => 'is_numeric']],
+        'args'                => ['id' => ['validate_callback' => fn($v) => is_numeric($v)]],
     ]);
 
     register_rest_route(NS, '/mapping', [
@@ -60,7 +60,7 @@ function register_routes(): void
         'permission_callback' => function (\WP_REST_Request $r) {
             return current_user_can('edit_post', (int) $r['id']);
         },
-        'args'                => ['id' => ['validate_callback' => 'is_numeric']],
+        'args'                => ['id' => ['validate_callback' => fn($v) => is_numeric($v)]],
     ]);
 
     register_rest_route(NS, '/validate-token', [
