@@ -217,18 +217,22 @@ if (!function_exists('spark_make_components_field')) {
                         Field::make('text', 'url', __('URL', 'spark-core')),
                     ]),
             ])
-            // — Stats: a row of figures.
+            // — Stats: a row of figures. Stored as a JSON textarea, NOT a
+            //   nested complex: this is the 6th nested-complex group in
+            //   one components field and Carbon's programmatic
+            //   carbon_set_post_meta refuses to persist its rows (the
+            //   editor UI handles it, but content-import / spark-puck
+            //   write programmatically). A JSON textarea round-trips
+            //   reliably; the normalizer json-decodes `figures` into the
+            //   `stats` array the frontend contract expects. Authors who
+            //   need the structured UI can use the gallery/cards groups;
+            //   stats is typically seeded via import, not hand-built.
             ->add_fields('stats', __('Stats', 'spark-core'), [
                 Field::make('text', 'eyebrow', __('Eyebrow', 'spark-core')),
                 Field::make('text', 'title', __('Title', 'spark-core')),
                 Field::make('text', 'background_color', __('Background color', 'spark-core')),
-                Field::make('complex', 'stats', __('Stats', 'spark-core'))
-                    ->set_layout('grid')
-                    ->add_fields([
-                        Field::make('text', 'value', __('Value', 'spark-core'))->set_width(50),
-                        Field::make('text', 'label', __('Label', 'spark-core'))->set_width(50),
-                        Field::make('textarea', 'description', __('Description', 'spark-core'))->set_rows(2),
-                    ]),
+                Field::make('textarea', 'figures', __('Stats (JSON: [{value,label,description}])', 'spark-core'))
+                    ->set_rows(4),
             ])
             // — Newsletter signup.
             ->add_fields('newsletter', __('Newsletter', 'spark-core'), [
@@ -479,6 +483,15 @@ if (!function_exists('spark_components_to_blocks')) {
                 continue;
             }
             $props = spark_normalize_row($row);
+            // Stats' figures are stored as a JSON string (see the field
+            // definition); decode into the `stats` array the contract wants.
+            if ($kind === 'stats') {
+                $decoded = isset($props['figures']) && is_string($props['figures'])
+                    ? json_decode($props['figures'], true)
+                    : ($props['figures'] ?? []);
+                $props['stats'] = is_array($decoded) ? $decoded : [];
+                unset($props['figures']);
+            }
             // Pricing tiers store their feature list as one-per-line text
             // (Carbon can't round-trip 3-level complex via the API). Split
             // it back into the string[] the frontend contract expects.
