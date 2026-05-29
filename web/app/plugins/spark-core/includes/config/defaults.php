@@ -25,6 +25,27 @@ function default_model(): array
     return [
         'version' => 1,
         'postTypes' => [
+            'spark_landing' => [
+                'labels' => [
+                    'name'          => 'Landing Pages',
+                    'singular_name' => 'Landing Page',
+                    'add_new_item'  => 'Add new landing page',
+                    'edit_item'     => 'Edit landing page',
+                    'new_item'      => 'New landing page',
+                    'view_item'     => 'View landing page',
+                    'all_items'     => 'All landing pages',
+                ],
+                'public'              => true,
+                'has_archive'         => false,
+                'rewrite'             => ['slug' => 'landing', 'with_front' => false],
+                'show_in_rest'        => false,
+                'show_in_graphql'     => true,
+                'graphql_single_name' => 'landing',
+                'graphql_plural_name' => 'landings',
+                'menu_icon'           => 'dashicons-layout',
+                'menu_position'       => 19,
+                'supports'            => ['title', 'editor', 'thumbnail', 'revisions', 'page-attributes'],
+            ],
             'spark_resource' => [
                 'labels' => [
                     'name'          => 'Resources',
@@ -100,6 +121,13 @@ function default_model(): array
                             ],
                         ],
                     ],
+                ],
+            ],
+            [
+                'id'       => 'landing_components',
+                'label'    => 'Landing page',
+                'postType' => 'spark_landing',
+                'tabs'     => [
                     [
                         'label'  => 'Components',
                         'fields' => [
@@ -107,7 +135,7 @@ function default_model(): array
                                 'type'      => 'preset',
                                 'preset'    => 'components',
                                 'key'       => 'spark_components',
-                                'help_text' => 'Optional. Build a landing page from the component palette (hero, cards, pricing, testimonials, …) or interleave galleries / CTAs / embeds with the body.',
+                                'help_text' => 'Build the page from the component palette: hero, cards, pricing, testimonials, stats, FAQ, newsletter, and more. Drag to reorder.',
                             ],
                         ],
                     ],
@@ -166,7 +194,7 @@ function default_model(): array
             ],
         ],
         'graphql' => [
-            'sharedPostTypes' => ['page', 'spark_resource'],
+            'sharedPostTypes' => ['page', 'spark_resource', 'spark_landing'],
             'fields' => [
                 'heroImage' => [
                     'type'        => 'SparkImage',
@@ -211,8 +239,9 @@ function default_model(): array
             ],
         ],
         'routes' => [
-            'headlessPostTypes' => ['spark_resource', 'page'],
+            'headlessPostTypes' => ['spark_resource', 'spark_landing', 'page'],
             'templates' => [
+                'spark_landing'  => '/{slug}/',
                 'spark_resource' => '/resources/{slug}/',
                 'page'           => '/{uri}/',
                 'post'           => '/blog/{slug}/',

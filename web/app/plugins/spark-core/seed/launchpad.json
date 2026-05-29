@@ -4,7 +4,7 @@
     "posts": [
       {
         "ref": "home",
-        "postType": "page",
+        "postType": "spark_landing",
         "status": "publish",
         "title": "LaunchPad - Ship Faster",
         "slug": "home",
@@ -192,7 +192,7 @@
       },
       {
         "ref": "about",
-        "postType": "page",
+        "postType": "spark_landing",
         "status": "publish",
         "title": "About LaunchPad",
         "slug": "about",
@@ -243,7 +243,7 @@
       },
       {
         "ref": "services",
-        "postType": "page",
+        "postType": "spark_landing",
         "status": "publish",
         "title": "Services",
         "slug": "services",
