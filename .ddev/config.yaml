@@ -10,6 +10,7 @@ database:
 use_dns_when_possible: true
 composer_version: "2"
 web_environment:
+  - WP_HOME=https://decoupled-wp.ddev.site
   - SPARK_FRONTEND_URL=http://localhost:4321
   # SPARK_AUDIT_URL — the Compliance Dashboard reads audit JSON from
   # <this>/audits/<scanner>/latest.json. That JSON is published only by

@@ -31,8 +31,16 @@ define('DB_COLLATE', '');
 
 $table_prefix = 'wp_';
 
-// URL configuration
-define('WP_HOME', getenv('WP_HOME') ?: 'https://decoupled-wp-spark.ddev.site');
+// URL configuration. Prefer an explicit WP_HOME env (set per
+// environment / by the Fly provisioner); otherwise derive from the
+// request host so a fresh clone or any DDEV project name works without
+// editing this file. CLI (no HTTP host) falls back to localhost.
+if (!getenv('WP_HOME')) {
+    $spark_scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $spark_host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    putenv('WP_HOME=' . $spark_scheme . '://' . $spark_host);
+}
+define('WP_HOME', getenv('WP_HOME'));
 define('WP_SITEURL', getenv('WP_SITEURL') ?: WP_HOME . '/wp');
 
 // Bedrock content directory
