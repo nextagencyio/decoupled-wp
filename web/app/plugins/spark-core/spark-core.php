@@ -45,6 +45,7 @@ require_once SPARK_CORE_DIR . 'includes/graphql-extensions.php';
 require_once SPARK_CORE_DIR . 'includes/preview-links.php';
 require_once SPARK_CORE_DIR . 'includes/headless-redirect.php';
 require_once SPARK_CORE_DIR . 'includes/revalidate.php';
+require_once SPARK_CORE_DIR . 'includes/mail.php';
 require_once SPARK_CORE_DIR . 'includes/brand-admin.php';
 require_once SPARK_CORE_DIR . 'includes/dashboard.php';
 require_once SPARK_CORE_DIR . 'includes/compliance-dashboard.php';
