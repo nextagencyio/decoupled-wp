@@ -65,6 +65,10 @@ require_once DC_CORE_DIR . 'includes/content/field-writers.php';
 require_once DC_CORE_DIR . 'includes/content/importer.php';
 require_once DC_CORE_DIR . 'includes/content/example.php';
 require_once DC_CORE_DIR . 'includes/cli.php';
+// REST namespace /wp-json/dc/v1/* — thin transport layer over the
+// content/model helpers above. The MCP server and CLI hit these so
+// they can speak the same shape of endpoint regardless of backend.
+require_once DC_CORE_DIR . 'includes/rest.php';
 
 /**
  * Activation hook — register the content model up front, then flush
