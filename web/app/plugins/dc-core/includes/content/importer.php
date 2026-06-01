@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-const POST_REF_META = '_spark_import_ref';
+const POST_REF_META = '_dc_import_ref';
 
 /**
  * Import a parsed envelope. Returns a result with counts + warnings.

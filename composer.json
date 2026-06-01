@@ -62,9 +62,9 @@
     "post-install-cmd": ["@copy-carbon-fields-assets"],
     "post-update-cmd": ["@copy-carbon-fields-assets"],
     "copy-carbon-fields-assets": [
-      "mkdir -p web/app/plugins/spark-core/vendor/carbon-fields/build",
-      "cp -r vendor/htmlburger/carbon-fields/build/classic web/app/plugins/spark-core/vendor/carbon-fields/build/ 2>/dev/null || true",
-      "cp -r vendor/htmlburger/carbon-fields/core web/app/plugins/spark-core/vendor/carbon-fields/ 2>/dev/null || true"
+      "mkdir -p web/app/plugins/dc-core/vendor/carbon-fields/build",
+      "cp -r vendor/htmlburger/carbon-fields/build/classic web/app/plugins/dc-core/vendor/carbon-fields/build/ 2>/dev/null || true",
+      "cp -r vendor/htmlburger/carbon-fields/core web/app/plugins/dc-core/vendor/carbon-fields/ 2>/dev/null || true"
     ]
   }
 }

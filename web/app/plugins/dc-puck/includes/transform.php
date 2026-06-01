@@ -4,7 +4,7 @@
  *
  * load:  carbon_get_post_meta(sections) → Puck { content, root, zones }
  * save:  Puck content[] → carbon_set_post_meta(sections), diffed by
- *        a synthetic _sparkRowId so edits update in place, new rows are
+ *        a synthetic _dcRowId so edits update in place, new rows are
  *        created, and removed rows are dropped — the row-identity
  *        analogue of dc_puck's _drupalUuid matching.
  *
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-const ROW_ID_SUB = '_spark_row_id';
+const ROW_ID_SUB = '_dc_row_id';
 
 /**
  * Build the Puck data object for a post.
@@ -122,7 +122,7 @@ function row_to_puck(array $row, array $map): ?array
         unset($tier);
     }
     $props['id'] = $row_id;
-    $props['_sparkRowId'] = $row_id;
+    $props['_dcRowId'] = $row_id;
 
     return ['type' => $puck_type, 'props' => $props];
 }
@@ -152,7 +152,7 @@ function snake_key(string $key): string
  * Recursively convert a Puck props object → a Carbon row data array:
  * snake_case keys, recurse into nested arrays of objects, sideload any
  * value that looks like an image URL field. Drops Puck-only keys
- * (id, _sparkRowId, type).
+ * (id, _dcRowId, _sparkRowId, type).
  *
  * @param array<string, mixed> $props
  * @param array<int, string> $warnings
@@ -162,7 +162,11 @@ function puck_props_to_row(array $props, array &$warnings): array
 {
     $out = [];
     foreach ($props as $key => $value) {
-        if (in_array($key, ['id', '_sparkRowId', 'type'], true)) {
+        // Drop Puck-only metadata keys: id, type, and the synthetic
+        // row-identity key (renamed _sparkRowId → _dcRowId, but accept
+        // the legacy form so editor sessions opened before the rename
+        // round-trip without losing row identity).
+        if (in_array($key, ['id', '_dcRowId', '_sparkRowId', 'type'], true)) {
             continue;
         }
         $sub = snake_key((string) $key);
@@ -233,8 +237,10 @@ function save(int $post_id, array $puck_data, array &$warnings): void
             continue;
         }
 
-        // Resolve / mint the row id (update vs create).
-        $row_id = (string) ($props['_sparkRowId'] ?? $props['id'] ?? '');
+        // Resolve / mint the row id (update vs create). Accept both the
+        // new `_dcRowId` and the legacy `_sparkRowId` so editor sessions
+        // opened before the rename still match against existing rows.
+        $row_id = (string) ($props['_dcRowId'] ?? $props['_sparkRowId'] ?? $props['id'] ?? '');
         if ($row_id === '' || !isset($existing_by_id[$row_id])) {
             $row_id = $puck_type . '-' . wp_generate_password(12, false, false);
         }

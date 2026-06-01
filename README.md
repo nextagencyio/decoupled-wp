@@ -21,14 +21,14 @@ deployable to a **no-custom-code host** like decoupled.io. See
 ## What's in the box
 
 Bedrock-style WordPress, Composer-managed, DDEV for local dev, plus one
-client-owned plugin — **`spark-core`** — that carries everything a
+client-owned plugin — **`dc-core`** — that carries everything a
 decoupled setup needs:
 
 | Piece | File | What it does |
 |---|---|---|
 | Carbon Fields boot | `carbon-fields-bootstrap.php` | Boots Carbon Fields and fixes the asset-URL 404 that happens when CF is Composer-installed outside the web root |
 | **Content-model engine** | `config/loader.php` | Loads, normalizes, and **validates** a content-model config, then caches it. The single source of truth every registrar reads. Invalid models are rejected and the site falls back to the default rather than fataling. |
-| **Default + bundled models** | `config/defaults.php`, `config/bundled.php`, `models/*.json` | The built-in starter model, plus a bundled-JSON loader: `SPARK_CONTENT_MODEL=<name>` activates `models/<name>.json` (data, never PHP) |
+| **Default + bundled models** | `config/defaults.php`, `config/bundled.php`, `models/*.json` | The built-in starter model, plus a bundled-JSON loader: `DC_CONTENT_MODEL=<name>` activates `models/<name>.json` (data, never PHP) |
 | Registrars | `post-types.php`, `taxonomies.php`, `fields-page.php`, `graphql-extensions.php`, `config/routes.php` | Turn the config into WordPress CPTs, taxonomies, Carbon Fields containers, GraphQL types/fields, route templates, and revalidation paths |
 | Body + components | `fields-body-block.php` | Body prose is the **standard WordPress editor** (`post_content`). Carbon Fields adds only structured extras — **never** a CF block per heading/paragraph. |
 | Editor role | `roles.php` | A generic `content_editor` role |
@@ -65,7 +65,7 @@ Astro domain.
 
 A project's content model — CPTs, taxonomies, Carbon Fields containers,
 GraphQL fields, routes, revalidation — is **declarative data**, not PHP.
-The trusted `spark-core` plugin interprets it at runtime. This is what
+The trusted `dc-core` plugin interprets it at runtime. This is what
 lets the WordPress side run on a **no-custom-code host** (decoupled.io):
 you ship a model, not a plugin fork.
 
@@ -112,7 +112,7 @@ GraphQL type name.
 > The whitelist was set from the field types + resolver patterns used
 > across five real engagements (HT, NMSF, esplanade, gfparks, YSAQMD).
 > If a *new* project needs something outside it, add the one named
-> resolver or field type to `spark-core` (PHP, once, in a release) —
+> resolver or field type to `dc-core` (PHP, once, in a release) —
 > every project then gets it via config. You cannot patch a model with
 > code on the host, so add the primitive before it ships.
 
@@ -132,7 +132,7 @@ model wins over the env default, which wins over the built-in default.
    wp spark model reset                         # back to the default
    ```
 3. **Bundled JSON** — drop `models/<name>.json` in the plugin and set
-   `SPARK_CONTENT_MODEL=<name>` (env or constant) as the provisioning
+   `DC_CONTENT_MODEL=<name>` (env or constant) as the provisioning
    default for a fresh instance.
 
 See `docs/ysaqmd-parity-validation.md` for the full schema, a worked
@@ -153,8 +153,8 @@ ddev wp core install \
   --admin_email=admin@example.com
 
 # Activate the plugins. Carbon Fields is NOT a plugin — it's a library
-# loaded via the Composer autoloader and booted by spark-core.
-ddev wp plugin activate spark-core wp-graphql wp-graphql-jwt-authentication
+# loaded via the Composer autoloader and booted by dc-core.
+ddev wp plugin activate dc-core wp-graphql wp-graphql-jwt-authentication
 
 # A fresh install defaults to plain permalinks; pretty permalinks are
 # required for the GraphQL route and CPT URLs.
@@ -179,22 +179,22 @@ pretty permalinks aren't flushed yet.
 
 1. **Copy the directory** to `~/ddev/<issuer>-cms/` and rename in
    `.ddev/config.yaml` (`name:`), `wp-cli.yml`, and `composer.json`.
-2. **Rename the plugin** `spark-core` → `<issuer>-core` if you want
-   (optional — `spark-core` works fine as-is). If you rename, update
+2. **Rename the plugin** `dc-core` → `<issuer>-core` if you want
+   (optional — `dc-core` works fine as-is). If you rename, update
    the `SPARK_CORE_*` constants, the namespace `Spark\Core`, and the
    `copy-carbon-fields-assets` paths in `composer.json`.
 3. **Define the content model** — author it as JSON (see *Config-driven
    content model* above) and load it via any of the three paths: the
    **Tools → Spark Content Model** screen, `wp spark model import`, or a
-   bundled `models/<name>.json` + `SPARK_CONTENT_MODEL`. The trusted
+   bundled `models/<name>.json` + `DC_CONTENT_MODEL`. The trusted
    plugin interprets the config — a normal content model needs **no new
    PHP**. Only reach for code if the project needs a field type or
-   resolver outside the whitelist, in which case add it to `spark-core`.
+   resolver outside the whitelist, in which case add it to `dc-core`.
 4. **Recolor** `assets/css/admin-brand.css` + `login-brand.css` — they
    use CSS custom properties; change the `--spark-*` values, drop a
    logo/favicon into `assets/brand/`.
-5. **Point at the frontend** — set `SPARK_FRONTEND_URL` /
-   `SPARK_AUDIT_URL` in `.ddev/config.yaml` and `.env`.
+5. **Point at the frontend** — set `DC_FRONTEND_URL` /
+   `DC_AUDIT_URL` in `.ddev/config.yaml` and `.env`.
 
 ## Gotchas baked in (learned the hard way on HT)
 

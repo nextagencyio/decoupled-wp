@@ -218,12 +218,12 @@ function meta_description_resolver(): callable
  * Resolver for `catalogSlug` — an optional routing-slug override the
  * Astro frontend prefers over the raw WP slug (`catalogSlug ?? slug`).
  * Lets a project re-key a page's URL without changing the WP slug.
- * Stored in the `_spark_catalog_slug` meta; null when unset.
+ * Stored in the `_dc_catalog_slug` meta; null when unset.
  */
 function catalog_slug_resolver(): callable
 {
     return static function ($post): ?string {
-        $val = trim((string) get_post_meta($post->databaseId, '_spark_catalog_slug', true));
+        $val = trim((string) get_post_meta($post->databaseId, '_dc_catalog_slug', true));
         return $val !== '' ? $val : null;
     };
 }
@@ -324,7 +324,7 @@ function resolver_from_config(array $config): ?callable
 /**
  * Resolve a raw (non-Carbon) post meta value as a scalar string, null
  * when empty. For underscore-prefixed keys Carbon doesn't own (e.g.
- * `_spark_catalog_slug`).
+ * `_dc_catalog_slug`).
  */
 function raw_meta_resolver(string $key): callable
 {

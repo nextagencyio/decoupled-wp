@@ -12,8 +12,8 @@ if (!defined('ABSPATH')) {
 }
 
 add_action('admin_menu', __NAMESPACE__ . '\\register_page');
-add_action('admin_post_spark_save_content_model', __NAMESPACE__ . '\\handle_save');
-add_action('admin_post_spark_reset_content_model', __NAMESPACE__ . '\\handle_reset');
+add_action('admin_post_dc_save_content_model', __NAMESPACE__ . '\\handle_save');
+add_action('admin_post_dc_reset_content_model', __NAMESPACE__ . '\\handle_reset');
 
 function register_page(): void
 {

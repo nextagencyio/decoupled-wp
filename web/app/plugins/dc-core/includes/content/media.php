@@ -4,7 +4,7 @@
  *
  * Each media entry in the envelope has a file-local `ref`. We fetch the
  * `sourceUrl` into the WP media library once, tag the attachment with a
- * `_spark_import_source` hash, and on re-import reuse the existing
+ * `_dc_import_source` hash, and on re-import reuse the existing
  * attachment instead of fetching again. Posts reference media by `ref`;
  * the importer resolves ref → attachment_id via the table this builds.
  *
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-const MEDIA_SOURCE_META = '_spark_import_source';
+const MEDIA_SOURCE_META = '_dc_import_source';
 
 /**
  * Sideload every media entry, returning [ref => attachment_id] for the
