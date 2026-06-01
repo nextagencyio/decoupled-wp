@@ -104,6 +104,50 @@ function register_routes(): void
             ],
         ],
     ]);
+
+    // POST /wp-json/dc/v1/import-config
+    // Validate + store a content model. JWT-protected.
+    // Body: the model JSON itself (the same shape `wp dc model export`
+    // prints). Returns the persisted model on success or a list of
+    // validation errors on rejection.
+    register_rest_route(NAMESPACE_V1, '/import-config', [
+        'methods'             => 'POST',
+        'callback'            => __NAMESPACE__ . '\\handle_import_config',
+        'permission_callback' => __NAMESPACE__ . '\\require_admin',
+    ]);
+
+    // POST /wp-json/dc/v1/import-content
+    // Validate + import a content envelope. JWT-protected.
+    // Body: the envelope JSON (the same shape /import-example returns
+    // and `wp dc content import` accepts on stdin). Returns import
+    // counts + any warnings on success or validation errors on
+    // rejection. Idempotent: posts keyed by (postType, slug); media by
+    // source-URL hash; terms by (taxonomy, slug).
+    register_rest_route(NAMESPACE_V1, '/import-content', [
+        'methods'             => 'POST',
+        'callback'            => __NAMESPACE__ . '\\handle_import_content',
+        'permission_callback' => __NAMESPACE__ . '\\require_admin',
+    ]);
+}
+
+/**
+ * Permission callback for write endpoints. The JWT plugin already
+ * resolves a valid `Authorization: Bearer <jwt>` into the current
+ * user, so the only thing we check here is the capability —
+ * standard WP machinery does the rest. Returns a `WP_Error` rather
+ * than `false` so the REST framework emits a useful 401/403 with a
+ * message instead of a generic "rest_forbidden".
+ */
+function require_admin(): bool|\WP_Error
+{
+    if (current_user_can('manage_options')) {
+        return true;
+    }
+    return new \WP_Error(
+        'dc_rest_forbidden',
+        'Write endpoints require manage_options. Provide a JWT bearer for an admin user via Authorization: Bearer <token>.',
+        ['status' => is_user_logged_in() ? 403 : 401]
+    );
 }
 
 /**
@@ -284,5 +328,84 @@ function handle_get_content(\WP_REST_Request $request): \WP_REST_Response
             'modified' => mysql_to_rfc3339($post->post_modified_gmt),
             'fields'   => $fields,
         ],
+    ], 200);
+}
+
+/**
+ * POST /wp-json/dc/v1/import-config
+ *
+ * Body: the model JSON (top-level keys: version, postTypes,
+ * taxonomies, fieldGroups, routes, etc.). Delegates to Config\save_model
+ * which validates + persists + flushes rewrites. Returns the persisted
+ * model on success, validation errors with HTTP 400 on rejection.
+ */
+function handle_import_config(\WP_REST_Request $request): \WP_REST_Response
+{
+    $body = $request->get_json_params();
+    if (!is_array($body)) {
+        return new \WP_REST_Response([
+            'errors' => ['Request body must be a JSON object containing the model.'],
+        ], 400);
+    }
+
+    // Guard against a malformed POST silently wiping the active model.
+    // The validator treats an empty model as "valid empty" (that's how
+    // `wp dc model reset` works internally), but on a REST POST a typo'd
+    // body shouldn't destroy the model — require an explicit shape. To
+    // actually wipe the model, callers POST a model with version + an
+    // empty postTypes/taxonomies, or hit the wp-admin Reset button.
+    if (!isset($body['version']) || !isset($body['postTypes'])) {
+        return new \WP_REST_Response([
+            'errors' => [
+                'Model body must include at least `version` and `postTypes`. To clear the model, send {"version":1,"postTypes":{},"taxonomies":{}}.',
+            ],
+        ], 400);
+    }
+
+    $errors = Config\save_model($body);
+    if ($errors !== []) {
+        return new \WP_REST_Response([
+            'errors' => $errors,
+        ], 400);
+    }
+
+    return new \WP_REST_Response([
+        'data' => Config\model(),
+    ], 200);
+}
+
+/**
+ * POST /wp-json/dc/v1/import-content
+ *
+ * Body: the content envelope ({version, content: {terms, media, posts}}),
+ * the same shape /import-example returns. Delegates to
+ * Content\import_envelope, which validates the envelope against the
+ * active model, then upserts terms / sideloads media / upserts posts
+ * in two passes. Idempotent. Returns counts + warnings on success,
+ * validation errors with HTTP 400 on rejection.
+ */
+function handle_import_content(\WP_REST_Request $request): \WP_REST_Response
+{
+    $body = $request->get_json_params();
+    if (!is_array($body)) {
+        return new \WP_REST_Response([
+            'ok'     => false,
+            'errors' => ['Request body must be a JSON object containing a content envelope.'],
+        ], 400);
+    }
+
+    $result = Content\import_envelope($body);
+
+    if (!$result['ok']) {
+        return new \WP_REST_Response([
+            'ok'     => false,
+            'errors' => $result['errors'] ?? [],
+        ], 400);
+    }
+
+    return new \WP_REST_Response([
+        'ok'       => true,
+        'warnings' => $result['warnings'] ?? [],
+        'summary'  => $result['summary'] ?? [],
     ], 200);
 }
