@@ -77,14 +77,14 @@ define('NONCE_SALT',       getenv('NONCE_SALT')       ?: 'put your unique phrase
 // preview flow — the Astro frontend logs in to fetch draft content).
 define('GRAPHQL_JWT_AUTH_SECRET_KEY', getenv('GRAPHQL_JWT_AUTH_SECRET_KEY') ?: 'change-me-in-production');
 
-// SPARK_FRONTEND_URL — the decoupled Astro frontend. The admin's
-// "View" / "Preview" buttons rewrite to this host (see spark-core's
+// DC_FRONTEND_URL — the decoupled Astro frontend. The admin's
+// "View" / "Preview" buttons rewrite to this host (see dc-core's
 // preview-links.php), and headless-redirect.php sends public WP
 // front-end hits here. DDEV sets it via .ddev/config.yaml's
 // web_environment; production sets the real demo URL.
-define('SPARK_FRONTEND_URL', getenv('SPARK_FRONTEND_URL') ?: 'http://localhost:4321');
+define('DC_FRONTEND_URL', getenv('DC_FRONTEND_URL') ?: 'http://localhost:4321');
 
-// SPARK_AUDIT_URL — where the Compliance Dashboard reads audit JSON
+// DC_AUDIT_URL — where the Compliance Dashboard reads audit JSON
 // (audits/<scanner>/latest.json). That JSON is published only by
 // deployed CI to the PRODUCTION frontend — a local dev frontend never
 // has it, and the DDEV container can't reach the host's localhost. So
@@ -92,20 +92,20 @@ define('SPARK_FRONTEND_URL', getenv('SPARK_FRONTEND_URL') ?: 'http://localhost:4
 // .ddev/config.yaml's web_environment (and the production env); the
 // fallback below is intentionally a non-working placeholder so a
 // missing config surfaces as an obvious "pending" dashboard.
-define('SPARK_AUDIT_URL', getenv('SPARK_AUDIT_URL') ?: 'https://example.invalid');
+define('DC_AUDIT_URL', getenv('DC_AUDIT_URL') ?: 'https://example.invalid');
 
-// SPARK_CONTENT_MODEL — selects an optional project content model
+// DC_CONTENT_MODEL — selects an optional project content model
 // (e.g. "ysaqmd") over the starter default. Empty = starter default.
 // Set via env (ddev .ddev/config web_environment) per project.
-define('SPARK_CONTENT_MODEL', getenv('SPARK_CONTENT_MODEL') ?: 'ysaqmd');
+define('DC_CONTENT_MODEL', getenv('DC_CONTENT_MODEL') ?: 'ysaqmd');
 
 // WORDPRESS_PREVIEW_SECRET — shared secret gating the Astro
 // /api/preview endpoint. Must match the value in the frontend's env.
-define('WORDPRESS_PREVIEW_SECRET', getenv('WORDPRESS_PREVIEW_SECRET') ?: 'spark_preview_dev_secret');
+define('WORDPRESS_PREVIEW_SECRET', getenv('WORDPRESS_PREVIEW_SECRET') ?: 'dc_preview_dev_secret');
 
-// SPARK_REVALIDATE_BYPASS_TOKEN — token sent with the on-save
+// DC_REVALIDATE_BYPASS_TOKEN — token sent with the on-save
 // revalidation request so the frontend trusts it.
-define('SPARK_REVALIDATE_BYPASS_TOKEN', getenv('SPARK_REVALIDATE_BYPASS_TOKEN') ?: 'spark-revalidate-dev-token');
+define('DC_REVALIDATE_BYPASS_TOKEN', getenv('DC_REVALIDATE_BYPASS_TOKEN') ?: 'dc-revalidate-dev-token');
 
 if (!defined('ABSPATH')) {
     define('ABSPATH', __DIR__ . '/wp/');

@@ -1,0 +1,173 @@
+/* Decoupled Core — branded WordPress admin.
+ *
+ * A neutral, slate-grey starting palette. Every color is a CSS custom
+ * property under :root, so a project recolors the entire admin by
+ * overriding the --dc-* tokens (e.g. in a child stylesheet or via
+ * wp_add_inline_style) — no selector edits required.
+ */
+
+:root {
+  --dc-ink-900:    #1a1d21;
+  --dc-ink-800:    #25292e;
+  --dc-ink-700:    #323840;
+  --dc-ink-600:    #434a54;
+  --dc-brand-500:  #3a6ea5; /* primary accent — recolor this first */
+  --dc-brand-400:  #5688bf;
+  --dc-brand-300:  #8fb3d4;
+  --dc-accent-500: #4a9d6e; /* secondary accent (current/active) */
+  --dc-surface-50: #f6f7f8;
+  --dc-text-900:   #1a1d21;
+}
+
+body.wp-admin {
+  background: var(--dc-surface-50);
+  color: var(--dc-text-900);
+}
+
+/* — Admin bar — */
+#wpadminbar {
+  background: var(--dc-ink-900);
+}
+
+#wpadminbar .ab-top-menu > li.hover > .ab-item,
+#wpadminbar:not(.mobile) .ab-top-menu > li:hover > .ab-item,
+#wpadminbar:not(.mobile) .ab-top-menu > li > .ab-item:focus {
+  background: var(--dc-ink-700);
+  color: #fff;
+}
+
+/* — Side menu — */
+#adminmenuback,
+#adminmenuwrap,
+#adminmenu {
+  background: var(--dc-ink-900);
+}
+
+#adminmenu a,
+#adminmenu .wp-submenu a,
+#collapse-button {
+  color: var(--dc-surface-50);
+}
+
+#adminmenu div.wp-menu-image::before,
+#collapse-button .collapse-button-icon::after {
+  color: var(--dc-brand-300);
+}
+
+#adminmenu li.menu-top:hover,
+#adminmenu li.opensub > a.menu-top,
+#adminmenu li > a.menu-top:focus,
+#adminmenu .wp-submenu,
+#adminmenu .wp-has-current-submenu .wp-submenu {
+  background: var(--dc-ink-800);
+}
+
+#adminmenu li.menu-top:hover > a,
+#adminmenu li.opensub > a.menu-top,
+#adminmenu li > a.menu-top:focus,
+#adminmenu li.menu-top:hover div.wp-menu-image::before,
+#adminmenu li.opensub div.wp-menu-image::before {
+  color: #fff;
+}
+
+#adminmenu li.wp-has-current-submenu a.wp-has-current-submenu,
+#adminmenu li.current a.menu-top,
+#adminmenu .wp-menu-arrow,
+#adminmenu .wp-has-current-submenu .wp-submenu .wp-submenu-head {
+  background: var(--dc-accent-500);
+  color: #fff;
+}
+
+#adminmenu li.wp-has-current-submenu div.wp-menu-image::before,
+#adminmenu li.current div.wp-menu-image::before {
+  color: #fff;
+}
+
+#adminmenu .wp-submenu a:focus,
+#adminmenu .wp-submenu a:hover,
+#adminmenu a:hover,
+#adminmenu li.menu-top > a:focus {
+  color: var(--dc-brand-300);
+}
+
+#adminmenu li.wp-has-current-submenu .wp-submenu a:focus,
+#adminmenu li.wp-has-current-submenu .wp-submenu a:hover {
+  color: #fff;
+}
+
+/* — Headings & panels — */
+.wrap h1,
+.wrap h2,
+.wrap h3,
+.postbox-header h2,
+.postbox .hndle {
+  color: var(--dc-ink-700);
+}
+
+.welcome-panel {
+  background: #fff;
+  border: 1px solid #d8dcdd;
+  border-radius: 4px;
+  color: var(--dc-text-900);
+}
+
+/* — Buttons — */
+.wp-core-ui .button-primary {
+  background: var(--dc-brand-500);
+  border-color: var(--dc-ink-700);
+}
+
+.wp-core-ui .button-primary:hover,
+.wp-core-ui .button-primary:focus {
+  background: var(--dc-ink-700);
+  border-color: var(--dc-ink-800);
+}
+
+.wp-core-ui .button-primary:focus {
+  box-shadow: 0 0 0 1px #fff, 0 0 0 3px var(--dc-brand-300);
+}
+
+/* — Links & accents — */
+a,
+.wrap .page-title-action,
+.components-button.is-link {
+  color: var(--dc-brand-500);
+}
+
+a:hover,
+a:focus,
+.wrap .page-title-action:hover,
+.wrap .page-title-action:focus {
+  color: var(--dc-ink-700);
+}
+
+.wrap .page-title-action {
+  border-color: var(--dc-brand-500);
+}
+
+.notice-info,
+div.updated {
+  border-left-color: var(--dc-brand-500);
+}
+
+.notice-success {
+  border-left-color: var(--dc-accent-500);
+}
+
+input[type="radio"]:checked::before {
+  background-color: var(--dc-brand-500);
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="url"]:focus,
+input[type="date"]:focus,
+input[type="tel"]:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--dc-brand-500);
+  box-shadow: 0 0 0 1px var(--dc-brand-500);
+}

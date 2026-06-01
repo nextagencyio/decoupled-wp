@@ -1,2 +1,6 @@
+# wp-cli config for the decoupled-wp container.
+# `path` points wp-cli at the Bedrock WP core location so commands
+# like `wp plugin activate` don't need --path on every invocation.
+# `url` is unset here — the entrypoint derives it at runtime from
+# WP_HOME (set per-tenant by the provisioner) or the request host.
 path: web/wp
-url: https://decoupled-wp-spark.ddev.site
