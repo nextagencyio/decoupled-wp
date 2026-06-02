@@ -31,14 +31,15 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Frontend origin, with a define → env var → localhost fallback chain.
+ * Frontend origin. Delegates to FrontendConnect\resolve_frontend_url
+ * so the connect-time stored URL (real Netlify host) wins over the
+ * provisioner-placeholder DC_FRONTEND_URL constant. Without this
+ * indirection, View links on a connected tenant would route back to
+ * the WP host instead of the public Astro frontend.
  */
 function frontend_url(): string
 {
-    $url = defined('DC_FRONTEND_URL')
-        ? DC_FRONTEND_URL
-        : (getenv('DC_FRONTEND_URL') ?: 'http://localhost:4321');
-    return untrailingslashit($url);
+    return \Dc\Core\FrontendConnect\resolve_frontend_url();
 }
 
 /**

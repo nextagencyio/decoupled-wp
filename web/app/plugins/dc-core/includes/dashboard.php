@@ -31,14 +31,15 @@ function register_widgets(): void
 }
 
 /**
- * Frontend origin, with a define → env var → localhost fallback chain.
+ * Frontend origin. Delegates to FrontendConnect\resolve_frontend_url
+ * so the connect-time stored URL wins over the provisioner placeholder.
+ * Without this, the wp-admin "Decoupled Status" widget shows the
+ * tenant's own host as the "frontend" — confusing for an operator
+ * trying to figure out where their public site lives.
  */
 function frontend_url(): string
 {
-    $url = defined('DC_FRONTEND_URL')
-        ? DC_FRONTEND_URL
-        : (getenv('DC_FRONTEND_URL') ?: 'http://localhost:4321');
-    return untrailingslashit($url);
+    return \Dc\Core\FrontendConnect\resolve_frontend_url();
 }
 
 /**
