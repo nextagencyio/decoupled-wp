@@ -104,9 +104,20 @@ body.wp-admin {
   color: var(--dc-ink-700);
 }
 
+/* WP 7.0 ships a dark "hero" welcome panel header (SVG background
+ * with #151515 fill + colored accent stripes). The text inside it
+ * is meant to inherit color: #fff from .welcome-panel-header. Our
+ * .wrap h1/h2/h3 rule above is generic enough to capture the
+ * "Welcome to WordPress!" heading and override it with dark gray —
+ * which renders as washed-out, low-contrast text on the dark hero.
+ * Restore the intended white color for headings inside the header. */
+.welcome-panel .welcome-panel-header h1,
+.welcome-panel .welcome-panel-header h2,
+.welcome-panel .welcome-panel-header h3 {
+  color: #fff;
+}
+
 .welcome-panel {
-  background: #fff;
-  border: 1px solid #d8dcdd;
   border-radius: 4px;
   color: var(--dc-text-900);
 }
