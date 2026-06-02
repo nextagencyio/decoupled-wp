@@ -71,6 +71,12 @@ body.login {
 .login input[type="text"] {
   border-color: #b4babc;
   border-radius: 4px;
+  /* The body.login color is intentionally off-white (--dc-surface-50)
+   * so navigation links sit on the dark page background. Form
+   * inputs sit on the WHITE form card — so they need to inherit
+   * the dark ink color, not the off-white body color. Without this
+   * the value text reads as white-on-white inside the card. */
+  color: var(--dc-text-900);
 }
 
 .login form .input:focus,
@@ -78,6 +84,15 @@ body.login {
 .login input[type="text"]:focus {
   border-color: var(--dc-brand-500);
   box-shadow: 0 0 0 1px var(--dc-brand-500);
+}
+
+/* Form-field helper text (e.g. the "Hint: ..." paragraph under the
+ * new-password field on the reset form). Same off-white-on-white
+ * issue as inputs above — sits on the form card, needs dark ink. */
+.login .description,
+.login .indicator-hint,
+.login p.description {
+  color: var(--dc-ink-700);
 }
 
 .wp-core-ui .button-primary {
