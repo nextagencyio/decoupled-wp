@@ -1,0 +1,186 @@
+name: PR install test
+
+# Runs a real WP install against the PR's composer.lock. If the install
+# succeeds AND the PR is our automated security-update PR, merges it
+# without human review. Human-authored PRs fall through to normal
+# review — this workflow still runs as a CI check, it just doesn't
+# self-merge them.
+#
+# The install is meaningful: composer install (proving the new lock
+# resolves), then `wp core install` against a real MariaDB service,
+# then `wp plugin activate dc-core dc-puck wp-graphql
+# wp-graphql-jwt-authentication`. Catches any regression where a
+# security bump breaks a plugin's activation hook or a required PHP
+# extension's version. Mirrors decoupled-project's pr-install-test.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'composer.json'
+      - 'composer.lock'
+      - 'Dockerfile'
+      - 'web/**'
+      - '.github/workflows/pr-install-test.yml'
+
+concurrency:
+  group: pr-install-test-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  install-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, xml, gd, pdo_mysql, opcache, intl, zip, curl
+          # WP install + plugin activation touches a lot. The default
+          # 128M can OOM during Carbon Fields' bootstrap. Match the
+          # tenant runtime sizing instead.
+          ini-values: memory_limit=512M, max_execution_time=300
+          tools: composer:v2, wp-cli
+          coverage: none
+
+      - name: Composer install
+        run: |
+          set -euo pipefail
+          # block-insecure off for the same reason it's off in the
+          # security-update workflow — we're installing a lock that
+          # passed audit verification there.
+          composer config audit.block-insecure false
+          # roots/wordpress-core-installer is a composer plugin that
+          # writes WP core into web/wp/ at install time. Without it,
+          # web/wp/ is empty and `wp core install` errors with
+          # "WordPress installation not found". Keep plugins on; skip
+          # only dev deps we don't need for an install test.
+          composer install --no-interaction --prefer-dist --no-dev
+
+      - name: Wait for MariaDB
+        run: |
+          for i in $(seq 1 30); do
+            if mysqladmin ping -h 127.0.0.1 -P 3306 -uroot -proot --silent; then
+              echo "mariadb ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::mariadb never came up"
+          exit 1
+
+      - name: Render Bedrock-compatible env for CI install
+        run: |
+          # Bedrock's web/wp-config.php reads DB_*, salts, WP_HOME,
+          # etc. via getenv(). Pass everything through the workflow
+          # env so wp-cli inherits a complete config — matching what
+          # the Fly provisioner sets at runtime, just with CI values.
+          cat <<EOF >> "$GITHUB_ENV"
+          DB_NAME=wordpress
+          DB_USER=root
+          DB_PASSWORD=root
+          DB_HOST=127.0.0.1
+          WP_HOME=http://localhost
+          WP_SITEURL=http://localhost/wp
+          AUTH_KEY=ci-key
+          SECURE_AUTH_KEY=ci-key
+          LOGGED_IN_KEY=ci-key
+          NONCE_KEY=ci-key
+          AUTH_SALT=ci-salt
+          SECURE_AUTH_SALT=ci-salt
+          LOGGED_IN_SALT=ci-salt
+          NONCE_SALT=ci-salt
+          DC_FRONTEND_URL=http://localhost
+          EOF
+
+      - name: WordPress core install
+        run: |
+          set -euo pipefail
+          # Bedrock's WP core lives at web/wp/. The `--path` arg points
+          # wp-cli at that, and the bootstrap loads web/wp-config.php
+          # which reads our DB_* env above.
+          wp --path=web/wp core install \
+            --url="http://localhost" \
+            --title="CI Install Test" \
+            --admin_user=admin \
+            --admin_email=admin@example.invalid \
+            --admin_password=admin \
+            --skip-email
+
+      - name: Activate dc-core + dc-puck + wp-graphql + JWT
+        run: |
+          set -euo pipefail
+          # Mirror the provisioner's plugin activation. If a security
+          # bump broke any of these plugins' activation hooks (rare
+          # but possible — e.g. a Carbon Fields upgrade tightening
+          # field-spec validation), this is where it surfaces.
+          wp --path=web/wp plugin activate \
+            dc-core dc-puck wp-graphql wp-graphql-jwt-authentication \
+            2>&1 | tee /tmp/plugin-activate.log
+          # Bail if any plugin failed to activate. wp-cli prints
+          # "Plugin 'foo' could not be activated." on failure but
+          # exits 0, so we have to grep for it explicitly.
+          if grep -q "could not be activated" /tmp/plugin-activate.log; then
+            echo "::error::One or more plugins failed to activate"
+            exit 1
+          fi
+
+      - name: wp core verify-checksums (catches a tampered/broken WP core)
+        run: |
+          set -euo pipefail
+          # If `composer install` produced a WP core directory that
+          # doesn't match the official checksums (rare but worth
+          # catching — e.g. a wpackagist mirror outage during install),
+          # this fails loudly. Otherwise silent success.
+          wp --path=web/wp core verify-checksums
+
+      # -----------------------------------------------------------------
+      # Auto-merge only for the automated security-update PR. Human-
+      # authored PRs reach this point too (as a CI check) but skip the
+      # merge step. Also requires GH_PAT — without it, the PR opens
+      # but stays open until someone merges manually.
+      # -----------------------------------------------------------------
+      - name: Auto-merge automated security PR
+        if: >-
+          success() &&
+          github.repository == 'nextagencyio/decoupled-wp' &&
+          github.event.pull_request.head.ref == 'security-updates/automated' &&
+          contains(github.event.pull_request.labels.*.name, 'automated') &&
+          env.HAS_PAT == 'true'
+        env:
+          HAS_PAT: ${{ secrets.GH_PAT != '' }}
+          # Use GH_PAT (not GITHUB_TOKEN) so the squash commit fires
+          # downstream push workflows on main — GitHub suppresses
+          # workflow triggers on pushes authored by GITHUB_TOKEN.
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          echo "PR passed install test + matches the automated security-update signature — squashing into main."
+          gh pr merge "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --squash \
+            --delete-branch \
+            --subject "chore(deps): apply WordPress security updates" \
+            --body "Automated by .github/workflows/wp-security-updates.yml — merged by pr-install-test.yml after install test passed."
