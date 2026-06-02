@@ -3,7 +3,7 @@
  * Plugin Name:       Decoupled Core
  * Plugin URI:        https://github.com/nextagencyio/decoupled-wp
  * Description:       Content model + GraphQL extensions for the decoupled-WordPress starter kit. Registers an example custom post type, taxonomy, structured Carbon Fields field groups, a content_editor role, headless preview / redirect / revalidation wiring, admin branding, and a wp-admin Compliance Dashboard. The WP analogue of Drupal's dc_core profile.
- * Version:           0.1.3
+ * Version:           0.1.4
  * Requires PHP:      8.1
  * Requires at least: 6.6
  * Author:            Decoupled.io
@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('DC_CORE_VERSION', '0.1.3');
+define('DC_CORE_VERSION', '0.1.4');
 define('DC_CORE_DIR', plugin_dir_path(__FILE__));
 define('DC_CORE_URL', plugin_dir_url(__FILE__));
 
@@ -74,6 +74,14 @@ require_once DC_CORE_DIR . 'includes/rest.php';
 // password-reset flow when a browser extension or speculative fetch
 // hits the login URL mid-form.
 require_once DC_CORE_DIR . 'includes/protect-rp-cookie.php';
+// /wp-json/dc/v1/frontend-connect + the wp-admin page that auto-fires
+// it. Drupal-side analogue: DcConfigController::triggerConnect on the
+// /dc-config page. Lights up a paired Astro frontend after the WP
+// tenant is provisioned (imports seed content, points dc-puck at the
+// frontend, calls the dashboard back to set Netlify env vars + trigger
+// a redeploy).
+require_once DC_CORE_DIR . 'includes/frontend-connect.php';
+require_once DC_CORE_DIR . 'includes/admin/dc-frontend.php';
 
 /**
  * Activation hook — register the content model up front, then flush
