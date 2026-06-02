@@ -1,0 +1,303 @@
+/*
+ * Decoupled Frontend landing page — the WP analogue of Drupal's
+ * /dc-config layout. Hero on top, settings-card grid in the middle,
+ * collapsible Manual Configuration at the bottom, sidebar checklist
+ * on the right.
+ *
+ * Scoped under .wrap.dc-frontend so it doesn't bleed into other
+ * wp-admin pages. Variables match dc-core's brand tokens
+ * (--dc-brand-500, --dc-accent-500, --dc-ink-700, --dc-surface-50).
+ */
+
+.wrap.dc-frontend {
+  --dcf-success: #10b981;
+  --dcf-success-bg: #ecfdf5;
+  --dcf-info-bg: #eff6ff;
+  --dcf-warn-bg: #fffbeb;
+  --dcf-warn-border: #fbbf24;
+  --dcf-text-muted: #64748b;
+  --dcf-border: #e2e8f0;
+  --dcf-card-bg: #fff;
+
+  /* WP-admin frame already has its own padding; we want the layout
+     to feel like a polished panel rather than an unstyled admin page. */
+  max-width: 1280px;
+  margin: 16px 0;
+}
+
+.wrap.dc-frontend h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: var(--dc-ink-700, #323840);
+}
+
+.wrap.dc-frontend .dcf-subtitle {
+  font-size: 15px;
+  color: var(--dcf-text-muted);
+  margin: 0 0 24px;
+}
+
+/* — Two-column main layout — */
+.dcf-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .dcf-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* — Status hero (top of the content column) — */
+.dcf-status-card {
+  background: var(--dcf-card-bg);
+  border: 1px solid var(--dcf-border);
+  border-left: 4px solid var(--dc-brand-500, #3a6ea5);
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+
+.dcf-status-card.is-active {
+  border-left-color: var(--dcf-success);
+  background: linear-gradient(0deg, var(--dcf-success-bg) 0%, var(--dcf-card-bg) 100%);
+}
+
+.dcf-status-card.is-pending {
+  border-left-color: var(--dc-brand-500, #3a6ea5);
+  background: linear-gradient(0deg, var(--dcf-info-bg) 0%, var(--dcf-card-bg) 100%);
+}
+
+.dcf-status-card.is-unwired {
+  border-left-color: var(--dcf-warn-border);
+  background: var(--dcf-warn-bg);
+}
+
+.dcf-status-card h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--dc-ink-700, #323840);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dcf-status-card .dcf-status-url {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: var(--dc-brand-500, #3a6ea5);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.dcf-status-card .dcf-status-url:hover {
+  text-decoration: underline;
+}
+
+.dcf-status-card .dcf-status-meta {
+  font-size: 12px;
+  color: var(--dcf-text-muted);
+  margin: 4px 0 0;
+}
+
+/* — Settings cards grid (replaces Drupal's "Settings" section) — */
+.dcf-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.dcf-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: var(--dcf-card-bg);
+  border: 1px solid var(--dcf-border);
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.dcf-card:hover,
+.dcf-card:focus {
+  border-color: var(--dc-brand-500, #3a6ea5);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.06);
+  color: inherit;
+}
+
+.dcf-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dcf-card-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.dcf-card-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--dc-ink-700, #323840);
+  margin: 0 0 2px;
+}
+
+.dcf-card-desc {
+  font-size: 12px;
+  color: var(--dcf-text-muted);
+  line-height: 1.4;
+}
+
+/* — Frontend URL form (collapsed by default once active) — */
+.dcf-url-form {
+  margin: 24px 0;
+  padding: 20px;
+  background: var(--dcf-card-bg);
+  border: 1px solid var(--dcf-border);
+  border-radius: 8px;
+}
+
+.dcf-url-form h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--dc-ink-700, #323840);
+}
+
+.dcf-url-form input[type="url"] {
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 12px;
+}
+
+.dcf-url-form .description {
+  font-size: 12px;
+  color: var(--dcf-text-muted);
+  margin: 8px 0 0;
+}
+
+/* — Sidebar — */
+.dcf-sidebar {
+  position: sticky;
+  top: 60px;
+}
+
+.dcf-sidebar-card {
+  background: var(--dcf-card-bg);
+  border: 1px solid var(--dcf-border);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.dcf-sidebar-card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 16px;
+  color: var(--dc-ink-700, #323840);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* — Checklist items — */
+.dcf-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dcf-checklist-item {
+  display: flex;
+  gap: 12px;
+}
+
+.dcf-step-num {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dcf-step-num.is-done {
+  background: var(--dcf-success);
+  color: #fff;
+}
+
+.dcf-step-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dc-ink-700, #323840);
+}
+
+.dcf-step-desc {
+  font-size: 12px;
+  color: var(--dcf-text-muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* — Collapsible Advanced / Manual Configuration — */
+.dcf-advanced {
+  margin-top: 24px;
+}
+
+.dcf-advanced > summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dcf-text-muted);
+  padding: 8px 0;
+  list-style: none;
+}
+
+.dcf-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.dcf-advanced > summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform 0.15s;
+}
+
+.dcf-advanced[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.dcf-advanced > div {
+  padding: 12px 0;
+}
+
+.dcf-status-json {
+  background: #f8fafc;
+  border: 1px solid var(--dcf-border);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #334155;
+  overflow: auto;
+  max-height: 320px;
+}
