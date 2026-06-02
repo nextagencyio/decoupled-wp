@@ -59,10 +59,17 @@ function audit_base(): string
  */
 function default_audit_url(): string
 {
-    if (defined('DC_FRONTEND_URL')) {
-        return DC_FRONTEND_URL;
+    // Prefer the connect-time stored URL (real Netlify host) over
+    // the placeholder define. Falls through to home_url('/') if no
+    // frontend is wired yet — audit-on-tenant-itself is at least
+    // useful (vs auditing localhost:4321 from a Fly tenant).
+    $url = \Dc\Core\FrontendConnect\resolve_frontend_url();
+    // resolve_frontend_url returns the localhost:4321 fallback when
+    // nothing's wired; for the audit context home_url is friendlier.
+    if ($url === 'http://localhost:4321' && !defined('DC_FRONTEND_URL') && !getenv('DC_FRONTEND_URL')) {
+        return home_url('/');
     }
-    return getenv('DC_FRONTEND_URL') ?: home_url('/');
+    return $url;
 }
 
 add_action('admin_menu', __NAMESPACE__ . '\\register_menu');

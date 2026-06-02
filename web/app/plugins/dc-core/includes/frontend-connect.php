@@ -284,3 +284,33 @@ function set_frontend_url(string $url): void
     }
     update_option(OPTION_KEY, $stored, false);
 }
+
+/**
+ * Canonical "what's the public Astro frontend URL?" lookup, used by
+ * preview-links, dashboard, compliance-dashboard, etc.
+ *
+ * Resolution order (most specific first):
+ *   1. dc_frontend_status['url']    set by frontend-connect (real Netlify URL)
+ *   2. DC_FRONTEND_URL constant     wp-config define (provisioner placeholder
+ *                                   or a project-specific override)
+ *   3. DC_FRONTEND_URL env var      runtime env
+ *   4. http://localhost:4321        DDEV-friendly dev fallback
+ *
+ * Without #1 the View / Preview / Puck editor URLs all collapse to
+ * the placeholder DC_FRONTEND_URL, which the provisioner sets to the
+ * TENANT's own URL — so View links round-trip through WP and look
+ * broken. Once the user runs frontend-connect, the stored option
+ * takes precedence and View links point at the real Netlify host.
+ */
+function resolve_frontend_url(): string
+{
+    $stored = get_option(OPTION_KEY, []);
+    if (is_array($stored) && !empty($stored['url'])) {
+        return untrailingslashit((string) $stored['url']);
+    }
+    if (defined('DC_FRONTEND_URL')) {
+        return untrailingslashit((string) DC_FRONTEND_URL);
+    }
+    $env = getenv('DC_FRONTEND_URL');
+    return untrailingslashit($env ?: 'http://localhost:4321');
+}
