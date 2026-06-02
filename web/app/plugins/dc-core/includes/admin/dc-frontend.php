@@ -31,6 +31,7 @@ const CAP  = 'manage_options';
 add_action('admin_menu', __NAMESPACE__ . '\\register_page');
 add_action('admin_post_dc_frontend_save_url', __NAMESPACE__ . '\\handle_save_url');
 add_action('admin_init', __NAMESPACE__ . '\\maybe_capture_url_from_query');
+add_action('admin_init', __NAMESPACE__ . '\\maybe_discover_url_on_init');
 add_action('admin_enqueue_scripts', __NAMESPACE__ . '\\enqueue_assets');
 add_filter('login_redirect', __NAMESPACE__ . '\\redirect_admins_to_landing', 10, 3);
 
@@ -75,6 +76,35 @@ function maybe_capture_url_from_query(): void
 const DEFAULT_DASHBOARD_URL = 'https://dashboard.decoupled.io';
 
 /**
+ * admin_init wrapper — scopes the discovery + redirect to ONLY the
+ * dc-frontend page load, so we don't make an HTTP call to the
+ * dashboard on every admin page hit. Runs before any output, so
+ * wp_safe_redirect works cleanly. ?dc_no_discover=1 escape hatch
+ * lets an operator land on the unwired form without discovery (e.g.
+ * to type a custom URL instead of accepting the dashboard's default).
+ */
+function maybe_discover_url_on_init(): void
+{
+    if (!is_admin() || wp_doing_ajax() || wp_doing_cron()) {
+        return;
+    }
+    if (!current_user_can(CAP)) {
+        return;
+    }
+    if (($_GET['page'] ?? '') !== SLUG) {
+        return;
+    }
+    if (!empty($_GET['dc_no_discover'])) {
+        return;
+    }
+    if (!maybe_discover_url_from_dashboard()) {
+        return;
+    }
+    wp_safe_redirect(admin_url('admin.php?page=' . SLUG));
+    exit;
+}
+
+/**
  * Auto-discover the paired frontend URL from the dashboard when the
  * tenant has no stored frontend URL yet — closes the gap between
  * "dashboard provisioned a Netlify site" and "WP knows about it."
@@ -90,10 +120,12 @@ const DEFAULT_DASHBOARD_URL = 'https://dashboard.decoupled.io';
  * blow up the admin page render — the manual paste-URL form is always
  * available as a fallback.
  *
- * Called from render_page() (not admin_init) because the lookup is
- * cheap (one HTTP call, only fires when the option is empty) and
- * tying it to render_page means redirects work cleanly with
- * wp_safe_redirect + exit. admin_init runs too early to redirect.
+ * Called from admin_init scoped to this page only. render_page() runs
+ * AFTER WP has emitted the admin header + sidebar, so wp_safe_redirect
+ * silently no-ops (headers already sent) and exit kills the render
+ * mid-page — producing a blank shell that needed a manual reload to
+ * recover. admin_init runs before any output so the redirect lands
+ * properly.
  */
 function maybe_discover_url_from_dashboard(): bool
 {
@@ -189,16 +221,13 @@ function render_page(): void
         wp_die(esc_html__('You do not have permission to view the Decoupled page.', 'dc-core'));
     }
 
-    // First-render auto-discovery: when this tenant has no stored
-    // frontend URL yet but the dashboard already provisioned a paired
-    // Netlify site, pull the URL down and reload so the rendered page
-    // shows the pending state + auto-trigger JS runs. ?dc_no_discover=1
-    // escape hatch lets an operator land on the unwired form without
-    // the discovery firing (e.g. to type a custom URL).
-    if (empty($_GET['dc_no_discover']) && maybe_discover_url_from_dashboard()) {
-        wp_safe_redirect(admin_url('admin.php?page=' . SLUG));
-        exit;
-    }
+    // Auto-discovery happens on admin_init (see maybe_discover_url_on_init
+    // above) — render_page runs AFTER WP has emitted the admin header +
+    // sidebar, so a redirect from here silently fails with headers-already-
+    // sent and produces a blank shell. By the time we render, the
+    // dc_frontend_status option has either been freshly populated by
+    // discovery (and we redirected, so we're not here) or genuinely has
+    // no URL (operator hasn't connected yet) — render the unwired form.
 
     $status = get_option(FrontendConnect\OPTION_KEY, []);
     $status = is_array($status) ? $status : [];

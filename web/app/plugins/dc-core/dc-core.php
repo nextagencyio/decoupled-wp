@@ -3,7 +3,7 @@
  * Plugin Name:       Decoupled Core
  * Plugin URI:        https://github.com/nextagencyio/decoupled-wp
  * Description:       Content model + GraphQL extensions for the decoupled-WordPress starter kit. Registers an example custom post type, taxonomy, structured Carbon Fields field groups, a content_editor role, headless preview / redirect / revalidation wiring, admin branding, and a wp-admin Compliance Dashboard. The WP analogue of Drupal's dc_core profile.
- * Version:           0.1.7
+ * Version:           0.1.8
  * Requires PHP:      8.1
  * Requires at least: 6.6
  * Author:            Decoupled.io
@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('DC_CORE_VERSION', '0.1.7');
+define('DC_CORE_VERSION', '0.1.8');
 define('DC_CORE_DIR', plugin_dir_path(__FILE__));
 define('DC_CORE_URL', plugin_dir_url(__FILE__));
 
