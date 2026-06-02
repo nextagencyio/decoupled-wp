@@ -31,6 +31,18 @@ define('DB_COLLATE', '');
 
 $table_prefix = 'wp_';
 
+// Trust the X-Forwarded-Proto header from upstream TLS terminators
+// (Fly's edge proxy, Cloudflare, nginx, etc). Without this WP's
+// is_ssl() returns false on the container — even though the visitor
+// connected over HTTPS — and the FORCE_SSL_ADMIN check below kicks
+// off an infinite redirect loop on /wp/wp-admin and /wp/wp-login.php
+// because WP keeps redirecting to its own https URL and seeing http
+// internally. Standard headless-Bedrock pattern; safe because we
+// only honor the header when the upstream genuinely terminated TLS.
+if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+    $_SERVER['HTTPS'] = 'on';
+}
+
 // URL configuration. Prefer an explicit WP_HOME env (set per
 // environment / by the Fly provisioner); otherwise derive from the
 // request host so a fresh clone or any DDEV project name works without
