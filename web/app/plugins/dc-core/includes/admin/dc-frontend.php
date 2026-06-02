@@ -54,8 +54,11 @@ function register_page(): void
 
 /**
  * Capture ?dc_frontend_url=<url> on every admin_init so the dashboard
- * can deep-link operators here with the Netlify URL pre-seeded (the
- * "Configure Frontend" menu item in SpacesGrid.tsx appends it).
+ * can deep-link operators here with the Netlify URL pre-seeded.
+ * (Previously the dashboard had a "Configure Frontend" menu item that
+ * appended this — removed in decoupled-dashboard #42 now that the
+ * landing page is the post-login default. Kept here in case any
+ * tool / docs / agent passes it via the URL.)
  */
 function maybe_capture_url_from_query(): void
 {
@@ -67,6 +70,71 @@ function maybe_capture_url_from_query(): void
         return;
     }
     FrontendConnect\set_frontend_url($url);
+}
+
+const DEFAULT_DASHBOARD_URL = 'https://dashboard.decoupled.io';
+
+/**
+ * Auto-discover the paired frontend URL from the dashboard when the
+ * tenant has no stored frontend URL yet — closes the gap between
+ * "dashboard provisioned a Netlify site" and "WP knows about it."
+ *
+ * The dashboard records frontend_sites.netlify_site_url at create-space
+ * time, but doesn't push that URL to the WP tenant. Without this,
+ * the operator lands on dc-frontend → sees "No frontend wired yet"
+ * → has to know to go back to the dashboard, copy the Netlify URL,
+ * paste it. Auto-discovery makes the post-login experience match
+ * Drupal's /dc-config (which pulls from the same dashboard endpoint).
+ *
+ * Bails silently on any error so a transient dashboard outage doesn't
+ * blow up the admin page render — the manual paste-URL form is always
+ * available as a fallback.
+ *
+ * Called from render_page() (not admin_init) because the lookup is
+ * cheap (one HTTP call, only fires when the option is empty) and
+ * tying it to render_page means redirects work cleanly with
+ * wp_safe_redirect + exit. admin_init runs too early to redirect.
+ */
+function maybe_discover_url_from_dashboard(): bool
+{
+    // Skip if already wired (active or pending — operator's manual
+    // paste of a URL wins over rediscovery).
+    $existing = get_option(FrontendConnect\OPTION_KEY, []);
+    if (is_array($existing) && !empty($existing['url'])) {
+        return false;
+    }
+
+    $space_token = (string) get_option('dc_space_auth_token', '');
+    if ($space_token === '') {
+        return false;
+    }
+
+    $dashboard = $_ENV['DC_DASHBOARD_URL']
+        ?? getenv('DC_DASHBOARD_URL')
+        ?: DEFAULT_DASHBOARD_URL;
+    $endpoint = rtrim((string) $dashboard, '/') . '/api/spaces/frontend-status-by-token';
+
+    $response = wp_remote_get($endpoint, [
+        'headers' => [
+            'X-Space-Token' => $space_token,
+            'Accept'        => 'application/json',
+        ],
+        'timeout' => 8,
+    ]);
+    if (is_wp_error($response)) {
+        return false;
+    }
+    if (wp_remote_retrieve_response_code($response) !== 200) {
+        return false;
+    }
+
+    $body = json_decode((string) wp_remote_retrieve_body($response), true);
+    if (!is_array($body) || empty($body['hasFrontend']) || empty($body['url'])) {
+        return false;
+    }
+
+    FrontendConnect\set_frontend_url((string) $body['url']);
+    return true;
 }
 
 /**
@@ -119,6 +187,17 @@ function render_page(): void
 {
     if (!current_user_can(CAP)) {
         wp_die(esc_html__('You do not have permission to view the Decoupled page.', 'dc-core'));
+    }
+
+    // First-render auto-discovery: when this tenant has no stored
+    // frontend URL yet but the dashboard already provisioned a paired
+    // Netlify site, pull the URL down and reload so the rendered page
+    // shows the pending state + auto-trigger JS runs. ?dc_no_discover=1
+    // escape hatch lets an operator land on the unwired form without
+    // the discovery firing (e.g. to type a custom URL).
+    if (empty($_GET['dc_no_discover']) && maybe_discover_url_from_dashboard()) {
+        wp_safe_redirect(admin_url('admin.php?page=' . SLUG));
+        exit;
     }
 
     $status = get_option(FrontendConnect\OPTION_KEY, []);
