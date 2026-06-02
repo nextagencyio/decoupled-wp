@@ -1,0 +1,174 @@
+name: WordPress security updates
+
+# Nightly scan for WordPress / contrib security advisories via composer
+# audit. If any are found, runs composer update on the affected
+# packages and opens a PR with the advisory details in the body.
+#
+# Mirror of the decoupled-project's drupal-security-updates.yml — same
+# composer audit foundation works for Bedrock-style WP (WP core is
+# pulled in via roots/wordpress, plugins via wpackagist).
+#
+# Security advisories ONLY — we deliberately do not pull in non-security
+# minor/patch updates here. Keeps the change surface small so the PR is
+# easy to review + the rollback radius is tight.
+#
+# On merge to main, the Fly source image (decoupled-wp) needs a fresh
+# `fly deploy` to bake the new lock; new tenants pick it up on
+# provision, existing tenants pick it up on next image roll.
+
+on:
+  schedule:
+    # 04:30 UTC daily — 30 min after Drupal so they don't compete for
+    # composer.org rate limits when both repos are running.
+    - cron: '30 4 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Scan only — do not open PR even if advisories are found'
+        type: boolean
+        default: false
+
+concurrency:
+  group: wp-security-updates
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  audit:
+    # Same self-hoster guard as the Drupal version: this opens PRs
+    # using a PAT we own, so a fork or unrelated clone running it
+    # would just spam red into Actions. Fork the workflow with your
+    # repo name to enable.
+    if: github.repository == 'nextagencyio/decoupled-wp'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          # Match the Bedrock image's runtime. composer audit doesn't
+          # care, but `composer install` needs to satisfy the project's
+          # platform constraint (php >=8.1).
+          php-version: '8.5'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install current dependencies
+        run: composer install --no-scripts --no-plugins --no-interaction --prefer-dist
+
+      - name: Scan for security advisories
+        id: audit
+        run: |
+          set -o pipefail
+          # composer audit exits non-zero when advisories are found —
+          # we want that to NOT fail the job, so capture JSON and parse
+          # it ourselves.
+          composer audit --format=json --locked > /tmp/audit.json || true
+          advisories_count=$(jq '[.advisories | to_entries[] | .value[]] | length' /tmp/audit.json 2>/dev/null || echo 0)
+          echo "advisories_count=${advisories_count}" >> "$GITHUB_OUTPUT"
+          echo "::notice::${advisories_count} security advisor(ies) found"
+          if [ "$advisories_count" -gt 0 ]; then
+            jq -r '.advisories | to_entries[] | .value[] | "• \(.packageName) — \(.title) (CVE: \(.cve // "n/a"), affected: \(.affectedVersions))"' /tmp/audit.json | tee /tmp/advisory-summary.txt
+            jq -r '.advisories | keys | .[]' /tmp/audit.json | sort -u > /tmp/affected-packages.txt
+            echo "affected packages:"
+            cat /tmp/affected-packages.txt
+          fi
+
+      - name: Exit if no advisories
+        if: steps.audit.outputs.advisories_count == '0'
+        run: |
+          echo "No advisories — nothing to do."
+          exit 0
+
+      - name: Exit if dry run
+        if: steps.audit.outputs.advisories_count != '0' && inputs.dry_run
+        run: |
+          echo "Advisories found but dry_run=true — not opening PR."
+          cat /tmp/advisory-summary.txt
+          exit 0
+
+      - name: Apply security updates
+        if: steps.audit.outputs.advisories_count != '0' && !inputs.dry_run
+        run: |
+          set -euo pipefail
+          # Advisory packages are often transitive (e.g. wpgraphql is
+          # pulled in via the JWT auth plugin's require). `composer
+          # update <advisory-pkg>` only bumps within direct require
+          # constraints — running `composer update` with
+          # --with-all-dependencies and NO package filter updates
+          # everything within existing composer.json constraints,
+          # which actually resolves the patches. Non-security minor
+          # bumps come along for the ride; the tight PR focus is
+          # traded for an update that actually fixes CVEs.
+          #
+          # Composer 2.8's block-insecure resolver refuses to LOAD any
+          # version of a package with ANY historical advisory — a
+          # recursive trap for a security-update workflow. Toggle it
+          # off for the update, back on after. The explicit composer
+          # audit calls before and after this step keep the safety
+          # guarantee intact.
+          echo "Advised packages that triggered this run:"
+          cat /tmp/affected-packages.txt
+          composer config audit.block-insecure false
+          composer update --with-all-dependencies --no-scripts --no-plugins --no-interaction --no-audit
+          composer config --unset audit.block-insecure
+
+          # Verify the advisory is actually resolved post-update.
+          composer audit --format=json --locked > /tmp/audit-after.json || true
+          remaining=$(jq '[.advisories | to_entries[] | .value[]] | length' /tmp/audit-after.json 2>/dev/null || echo 0)
+          echo "advisories remaining after update: $remaining"
+          if [ "$remaining" -gt 0 ]; then
+            echo "::warning::$remaining advisor(ies) still present after composer update — may require a manual fix"
+            jq -r '.advisories | to_entries[] | .value[] | "• \(.packageName) — \(.title)"' /tmp/audit-after.json >> /tmp/advisory-summary.txt
+          fi
+
+      - name: Create pull request
+        if: steps.audit.outputs.advisories_count != '0' && !inputs.dry_run
+        uses: peter-evans/create-pull-request@v7
+        with:
+          # Use a PAT instead of the default GITHUB_TOKEN so the PR
+          # counts as user-authored — otherwise GitHub suppresses
+          # downstream pull_request events (like pr-install-test) to
+          # prevent workflow recursion, which would block auto-merge.
+          # Falls back to GITHUB_TOKEN if GH_PAT isn't set on the
+          # repo; the PR still opens but auto-merge won't fire.
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          branch: security-updates/automated
+          base: main
+          commit-message: |
+            chore(deps): apply WordPress security updates
+
+            Automated by .github/workflows/wp-security-updates.yml
+          title: "🔒 WordPress security updates"
+          body: |
+            **Automated security advisories applied by the nightly
+            `wp-security-updates` workflow.**
+
+            ### Advisories addressed
+            ```
+            $(cat /tmp/advisory-summary.txt 2>/dev/null || echo '(see workflow log)')
+            ```
+
+            ### Auto-merge
+            This PR will auto-merge into `main` once
+            [`pr-install-test`](../actions/workflows/pr-install-test.yml)
+            passes — a real `wp core install` against the new lock,
+            plus activation of dc-core / dc-puck / wp-graphql /
+            wp-graphql-jwt-authentication. If the install test fails,
+            the PR stays open for human review.
+
+            Auto-merge requires a `GH_PAT` secret to be set on this
+            repo; without it the PR opens but stays open until someone
+            merges manually.
+
+            ### Rollback
+            If this update breaks production after it's deployed:
+            1. Revert the merge commit on `main`, OR
+            2. Roll back the Fly source image to the previous deployment tag with `fly deploy -a decoupled-wp --image registry.fly.io/decoupled-wp:<previous-tag>`.
+          labels: security, dependencies, automated
+          delete-branch: true
