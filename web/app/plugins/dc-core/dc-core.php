@@ -3,7 +3,7 @@
  * Plugin Name:       Decoupled Core
  * Plugin URI:        https://github.com/nextagencyio/decoupled-wp
  * Description:       Content model + GraphQL extensions for the decoupled-WordPress starter kit. Registers an example custom post type, taxonomy, structured Carbon Fields field groups, a content_editor role, headless preview / redirect / revalidation wiring, admin branding, and a wp-admin Compliance Dashboard. The WP analogue of Drupal's dc_core profile.
- * Version:           0.1.0
+ * Version:           0.1.1
  * Requires PHP:      8.1
  * Requires at least: 6.6
  * Author:            Decoupled.io
@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('DC_CORE_VERSION', '0.1.0');
+define('DC_CORE_VERSION', '0.1.1');
 define('DC_CORE_DIR', plugin_dir_path(__FILE__));
 define('DC_CORE_URL', plugin_dir_url(__FILE__));
 
@@ -69,6 +69,11 @@ require_once DC_CORE_DIR . 'includes/cli.php';
 // content/model helpers above. The MCP server and CLI hit these so
 // they can speak the same shape of endpoint regardless of backend.
 require_once DC_CORE_DIR . 'includes/rest.php';
+// Bail out of /wp/wp-login.php early on incidental image-style fetches
+// so WP-core's default-case rp_cookie cleanup doesn't break the
+// password-reset flow when a browser extension or speculative fetch
+// hits the login URL mid-form.
+require_once DC_CORE_DIR . 'includes/protect-rp-cookie.php';
 
 /**
  * Activation hook — register the content model up front, then flush
