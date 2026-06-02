@@ -35,11 +35,26 @@ body.login {
 /* Logo plate. The white card + shadow only render when a real brand
    logo exists (brand-admin.php adds `.has-logo` to the login <body>).
    With no brand set, the base rule leaves the area unstyled so an
-   unbranded starter install shows no empty white box. */
+   unbranded starter install shows no empty white box.
+
+   The default WP-core `.login h1 a` rule hardcodes
+   `height: 84px; width: 84px; margin: 0 auto 24px;` — so even with
+   `background-image: none` the element reserves ~108px of vertical
+   space, which on the dark inline-iframe login (the "session
+   expired" modal) shows up as a big empty dark strip above the
+   message. Collapse it to zero when there's no logo. */
 .login h1 a {
   background-image: var(--dc-logo-url, none);
   background-position: center;
   background-repeat: no-repeat;
+}
+
+.login:not(.has-logo) h1 a {
+  height: 0;
+  width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 /* Branded: a tight, roughly-square white card sized to the logo. Most
