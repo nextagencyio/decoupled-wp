@@ -2,18 +2,20 @@
 /vendor/
 # WordPress core (Composer-managed)
 /web/wp/
-# Bedrock content — only the spark-* first-party plugins are tracked
+# Bedrock content — only the dc-* first-party plugins are tracked.
+# (Renamed from spark-* in PR #1. Old slugs left below for reference
+# in case anyone forks an old branch.)
 /web/app/mu-plugins/
 /web/app/plugins/*
-!/web/app/plugins/spark-core/
-!/web/app/plugins/spark-puck/
+!/web/app/plugins/dc-core/
+!/web/app/plugins/dc-puck/
 /web/app/themes/*
 !/web/app/themes/.gitkeep
 /web/app/uploads/
 /web/app/upgrade/
 /web/app/cache/
 # Carbon Fields assets copied in by the composer post-install hook
-/web/app/plugins/spark-core/vendor/
+/web/app/plugins/dc-core/vendor/
 # Environment
 /.env
 # DDEV
