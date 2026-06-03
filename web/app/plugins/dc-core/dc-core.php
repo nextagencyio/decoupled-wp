@@ -3,7 +3,7 @@
  * Plugin Name:       Decoupled Core
  * Plugin URI:        https://github.com/nextagencyio/decoupled-wp
  * Description:       Content model + GraphQL extensions for the decoupled-WordPress starter kit. Registers an example custom post type, taxonomy, structured Carbon Fields field groups, a content_editor role, headless preview / redirect / revalidation wiring, admin branding, and a wp-admin Compliance Dashboard. The WP analogue of Drupal's dc_core profile.
- * Version:           0.1.9
+ * Version:           0.1.10
  * Requires PHP:      8.1
  * Requires at least: 6.6
  * Author:            Decoupled.io
@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('DC_CORE_VERSION', '0.1.9');
+define('DC_CORE_VERSION', '0.1.10');
 define('DC_CORE_DIR', plugin_dir_path(__FILE__));
 define('DC_CORE_URL', plugin_dir_url(__FILE__));
 
@@ -86,6 +86,11 @@ require_once DC_CORE_DIR . 'includes/admin/dc-frontend.php';
 // The WP analogue of Drupal's /api/generate-login; consumed by the
 // dashboard's /api/spaces/[id]/login-link route and MCP get_login_link.
 require_once DC_CORE_DIR . 'includes/admin-login.php';
+// /wp-json/dc/v1/oauth-credentials, /taxonomies, /taxonomies/<tax>/terms —
+// the read-only discovery surface the MCP server's get_oauth_credentials /
+// list_taxonomies / list_terms tools call. WP analogues of Drupal's
+// /api/dc-import/oauth-credentials and the JSON:API taxonomy reads.
+require_once DC_CORE_DIR . 'includes/mcp-discovery.php';
 
 /**
  * Activation hook — register the content model up front, then flush
