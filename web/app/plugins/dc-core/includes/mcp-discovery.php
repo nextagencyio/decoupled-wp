@@ -44,16 +44,23 @@ function register_routes(): void
         'permission_callback' => __NAMESPACE__ . '\\require_space_token',
     ]);
 
+    // Taxonomies + terms are publicly readable on a stock WP site
+    // already (wp/v2/categories, wp/v2/tags); we expose the same data
+    // under dc/v1 for backend-agnostic naming. No auth gate — matches
+    // the public-read convention of /content-types and /content. The
+    // dc/v1 proxy in the dashboard mints a JWT and sends it as
+    // `Authorization: Bearer`, which is just ignored by the public
+    // permission_callback.
     register_rest_route(NAMESPACE_V1, '/taxonomies', [
         'methods'             => 'GET',
         'callback'            => __NAMESPACE__ . '\\handle_list_taxonomies',
-        'permission_callback' => __NAMESPACE__ . '\\require_space_token',
+        'permission_callback' => '__return_true',
     ]);
 
     register_rest_route(NAMESPACE_V1, '/taxonomies/(?P<tax>[a-z0-9_-]+)/terms', [
         'methods'             => 'GET',
         'callback'            => __NAMESPACE__ . '\\handle_list_terms',
-        'permission_callback' => __NAMESPACE__ . '\\require_space_token',
+        'permission_callback' => '__return_true',
         'args'                => [
             'tax' => [
                 'required'          => true,
