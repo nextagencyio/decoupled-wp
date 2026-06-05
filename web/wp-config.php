@@ -99,12 +99,21 @@ define('DC_FRONTEND_URL', getenv('DC_FRONTEND_URL') ?: 'http://localhost:4321');
 // DC_AUDIT_URL — where the Compliance Dashboard reads audit JSON
 // (audits/<scanner>/latest.json). That JSON is published only by
 // deployed CI to the PRODUCTION frontend — a local dev frontend never
-// has it, and the DDEV container can't reach the host's localhost. So
-// this MUST point at the deployed demo URL. Set it per project via
-// .ddev/config.yaml's web_environment (and the production env); the
-// fallback below is intentionally a non-working placeholder so a
-// missing config surfaces as an obvious "pending" dashboard.
-define('DC_AUDIT_URL', getenv('DC_AUDIT_URL') ?: 'https://example.invalid');
+// has it, and the DDEV container can't reach the host's localhost.
+//
+// We only `define()` when the env var is actually set. If it's not,
+// dc-core's compliance-dashboard.php has a smart fallback chain
+// (default_audit_url → resolve_frontend_url → home_url) that picks
+// the live frontend URL after the user runs frontend-connect. Defining
+// a placeholder here would short-circuit that fallback and force every
+// pilot to manually run `fly secrets set DC_AUDIT_URL=...` on the
+// tenant. Better to let the runtime choose — see the dc-core helper
+// for the precedence.
+$dcAuditUrl = getenv('DC_AUDIT_URL');
+if ($dcAuditUrl !== false && $dcAuditUrl !== '') {
+    define('DC_AUDIT_URL', $dcAuditUrl);
+}
+unset($dcAuditUrl);
 
 // DC_CONTENT_MODEL — selects an optional project content model
 // (e.g. "ysaqmd") over the starter default. Empty = starter default.
