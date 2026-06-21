@@ -57,6 +57,14 @@ function dc_register_configured_field_group(array $group): void
         __((string) ($group['label'] ?? 'Content details'), 'dc-core')
     )->where('post_type', '=', $post_type);
 
+    // Track tab labels so we never register two tabs with the same name on
+    // one container. Carbon Fields throws an admin notice ("Tab name
+    // duplication for <label>") when that happens — which occurs whenever a
+    // model supplies two tabs without an explicit `label` (both fall back to
+    // the 'Content' default below) or two tabs that share a label. Dedupe by
+    // auto-suffixing collisions ("Content", "Content 2", …).
+    $used_tab_labels = [];
+
     $tabs = is_array($group['tabs'] ?? null) ? $group['tabs'] : [];
     foreach ($tabs as $tab) {
         if (!is_array($tab)) {
@@ -77,7 +85,16 @@ function dc_register_configured_field_group(array $group): void
         }
 
         if ($fields !== []) {
-            $container->add_tab(__((string) ($tab['label'] ?? 'Content'), 'dc-core'), $fields);
+            $label = (string) ($tab['label'] ?? 'Content');
+            $base = $label;
+            $suffix = 2;
+            while (isset($used_tab_labels[$label])) {
+                $label = $base . ' ' . $suffix;
+                $suffix++;
+            }
+            $used_tab_labels[$label] = true;
+
+            $container->add_tab(__($label, 'dc-core'), $fields);
         }
     }
 }
