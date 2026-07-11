@@ -20,6 +20,20 @@
 #      `enabled_post_types()` includes `page` and the "Open Design Studio"
 #      button appears on those edit screens.
 #
+#      For the DEPLOYED frontend to READ the stack (not just edit it),
+#      also expose the components field on the post type's GraphQL type
+#      so the spark-astro-wp `fetchLandings()` can query it:
+#
+#        "graphql": {
+#          "sharedPostTypes": ["page"],
+#          "postTypeFields": { "Page": {
+#            "components": { "type": {"list_of":"DcComponent"},
+#              "resolver": "components", "key": "dc_components" } } } }
+#
+#      Without this the editor still round-trips (dc/v1 load/save), but the
+#      deployed site's wp-mode homepage gets an empty landing list and
+#      falls back to its no-landing render.
+#
 #   2. Options: point dc-puck at the frontend + name the sections field.
 #      - dc_puck_editor_url  = the frontend ORIGIN, NO /editor suffix
 #        (dc-puck appends "/editor/{id}"; a trailing /editor → 404).
