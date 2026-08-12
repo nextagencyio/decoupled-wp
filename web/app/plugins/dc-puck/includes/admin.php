@@ -182,7 +182,9 @@ function print_launch_script(): void
           .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
           .then(function (data) {
             if (!data || !data.token) throw new Error('No token');
-            window.location.href = BASE + '/editor/' + id + '?token=' + encodeURIComponent(data.token);
+            // Trailing slash before the query: the Astro frontend ships
+            // trailingSlash:'always', which hard-404s /editor/4?token=…
+            window.location.href = BASE + '/editor/' + id + '/?token=' + encodeURIComponent(data.token);
           })
           .catch(function () {
             el.style.pointerEvents = '';
