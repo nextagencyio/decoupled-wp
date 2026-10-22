@@ -1,0 +1,68 @@
+name: PHP runtime refresh
+
+# Rebuilds the `decoupled-wp` source image whenever the FrankenPHP base
+# tag (dunglas/frankenphp:1-php8.5) ships a PHP version newer than the one in
+# the image that's live now.
+#
+# Why: the Dockerfile's FROM is a floating tag, but nothing rebuilt the image
+# when PHP itself was patched. PHP2Shell (CVE-2026-109618/109619, fixed in
+# PHP 8.5.12 on 2026-10-21) shipped and the image stayed vulnerable until a
+# rebuild happened for an unrelated reason.
+# (decoupled-wp was worse: its build files were never committed, so it sat
+# on PHP 8.5.7 until they were recovered.)
+#
+# Tenants pick the new image up from decoupled-dashboard's daily
+# "Fly fleet deploy" (11:30 UTC), which redeploys every tenant that has
+# drifted from this source app.
+
+on:
+  schedule:
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Rebuild even if the PHP version is unchanged'
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-decoupled-wp-source
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.repository == 'nextagencyio/decoupled-wp'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      APP: decoupled-wp
+      BASE: dunglas/frankenphp:1-php8.5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Compare PHP versions
+        id: cmp
+        run: |
+          set -euo pipefail
+          UPSTREAM=$(docker run --rm --pull always --entrypoint php "$BASE" -r 'echo PHP_VERSION;')
+          TAG=$(flyctl image show -a "$APP" | awk 'NR==3 {print $7}')
+          flyctl auth docker
+          LIVE=$(docker run --rm --entrypoint php "registry.fly.io/$APP:$TAG" -r 'echo PHP_VERSION;')
+          echo "upstream=$UPSTREAM live=$LIVE ($APP:$TAG)"
+          echo "::notice::PHP upstream $UPSTREAM, live $LIVE"
+          if [ "$UPSTREAM" != "$LIVE" ] || [ "${{ inputs.force || 'false' }}" = "true" ]; then
+            echo "rebuild=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Rebuild and deploy the source image
+        if: steps.cmp.outputs.rebuild == 'true'
+        run: |
+          # --no-cache: the floating FROM must be re-pulled, not served
+          # from the builder's layer cache.
+          flyctl deploy -a "$APP" --remote-only --no-cache --wait-timeout 600
+          TAG=$(flyctl image show -a "$APP" | awk 'NR==3 {print $7}')
+          flyctl auth docker
+          NOW=$(docker run --rm --entrypoint php "registry.fly.io/$APP:$TAG" -r 'echo PHP_VERSION;')
+          echo "::notice::$APP rebuilt: PHP $NOW"
