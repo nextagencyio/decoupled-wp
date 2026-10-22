@@ -1,0 +1,30 @@
+# MariaDB config overrides for the WordPress sidecar on Fly.
+#
+# Debian's mariadb-server ships a reasonable default config. This
+# file only overrides the bits that matter for our tenant setup:
+#
+#   bind-address         — localhost-only, since WP runs in the
+#                          same machine and talks over 127.0.0.1
+#   datadir              — /data/mysql (Fly volume mount)
+#   innodb_buffer_pool   — 256M for the 2GB VM we target
+#   character-set        — utf8mb4 everywhere for WP's emoji/unicode
+#                          support
+#   max_connections      — capped low; WP opens a handful of
+#                          connections per request, no need for more
+
+[mysqld]
+datadir         = /data/mysql
+bind-address    = 127.0.0.1
+skip-name-resolve
+
+innodb_buffer_pool_size = 256M
+innodb_log_file_size    = 64M
+innodb_flush_log_at_trx_commit = 2
+
+character-set-server    = utf8mb4
+collation-server        = utf8mb4_general_ci
+
+max_connections         = 50
+
+# Unix socket for the entrypoint's ping check.
+socket = /run/mysqld/mysqld.sock

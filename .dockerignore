@@ -1,0 +1,6 @@
+.git
+.ddev
+vendor
+web/wp
+web/app/uploads
+docs

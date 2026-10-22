@@ -1,0 +1,27 @@
+{
+	# Fly terminates TLS at its proxy.
+	auto_https off
+	admin off
+	order php_server before file_server
+}
+
+# Fly injects PORT. Local docker-run defaults to 8080.
+:{$PORT:8080} {
+	# Bedrock layout: WP core at web/wp/, content at web/app/, public
+	# entrypoint at web/index.php. Caddy serves from web/ and
+	# php_server hands off any *.php to FrankenPHP.
+	root * /app/web
+	encode zstd br gzip
+
+	# php_server handles WP's index.php + the wp/wp-admin/* and
+	# wp/wp-login.php entrypoints. With no explicit worker block in
+	# the global section, php_server uses classic-mode handling (one
+	# request per process). We can add worker mode later if TTFB
+	# becomes a concern; classic mode is the safest WP starting point.
+	php_server
+
+	log {
+		output stdout
+		format json
+	}
+}
