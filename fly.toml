@@ -1,0 +1,25 @@
+# Source app for decoupled.io WordPress tenants. Recovered 2026-10-22 from
+# `fly config show -a decoupled-wp`.
+app = "decoupled-wp"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[[mounts]]
+  source = "tenant_data"
+  destination = "/data"
+  initial_size = "4gb"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  memory = "2gb"
+  cpu_kind = "shared"
+  cpus = 1
