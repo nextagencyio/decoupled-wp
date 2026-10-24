@@ -22,6 +22,14 @@ on:
       - 'Dockerfile'
       - 'web/**'
       - '.github/workflows/pr-install-test.yml'
+  # Called by wp-security-updates.yml to test the updated lock before it
+  # commits to main. That's the path that actually ships security updates;
+  # the PR auto-merge below only ever worked with a GH_PAT the repo never had.
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
 
 concurrency:
   group: pr-install-test-${{ github.event.pull_request.number }}
@@ -52,7 +60,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha }}
 
       - name: Setup PHP 8.5
         uses: shivammathur/setup-php@v2

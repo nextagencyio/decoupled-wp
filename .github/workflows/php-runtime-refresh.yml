@@ -1,8 +1,9 @@
 name: PHP runtime refresh
 
-# Rebuilds the `decoupled-wp` source image whenever the FrankenPHP base
-# tag (dunglas/frankenphp:1-php8.5) ships a PHP version newer than the one in
-# the image that's live now.
+# Rebuilds the `decoupled-wp` source image when the FrankenPHP base tag
+# (dunglas/frankenphp:1-php8.5) ships a new PHP or a fresh base build
+# (Debian/openssl/Caddy fixes), at least weekly for apt updates, and on demand
+# from wp-security-updates.yml after it lands a WordPress security update.
 #
 # Why: the Dockerfile's FROM is a floating tag, but nothing rebuilt the image
 # when PHP itself was patched. PHP2Shell (CVE-2026-109618/109619, fixed in
@@ -24,6 +25,13 @@ on:
         description: 'Rebuild even if the PHP version is unchanged'
         type: boolean
         default: false
+  # wp-security-updates.yml calls this (force: true) to rebuild after it
+  # lands a security update on main.
+  workflow_call:
+    inputs:
+      force:
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-decoupled-wp-source
@@ -40,21 +48,42 @@ jobs:
       BASE: dunglas/frankenphp:1-php8.5
     steps:
       - uses: actions/checkout@v4
+        with:
+          # main, not github.sha: when wp-security-updates calls this, the
+          # caller's sha predates the update it just landed.
+          ref: main
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Compare PHP versions
+      - name: Compare base image and PHP with the live image
         id: cmp
         run: |
           set -euo pipefail
-          UPSTREAM=$(docker run --rm --pull always --entrypoint php "$BASE" -r 'echo PHP_VERSION;')
+          # Rebuild when ANY of these is true. PHP alone isn't enough: Debian
+          # (openssl, glibc), Caddy and MariaDB fixes ship as new base-image
+          # builds or apt packages without a PHP version change.
+          #   1. the base tag ships a different PHP version
+          #   2. the base tag was rebuilt after the image we're running
+          #      (our image inherits the base's org.opencontainers.image.created)
+          #   3. the live image is older than 7 days (picks up apt updates
+          #      for the packages our Dockerfile installs)
+          #   4. force
+          docker pull -q "$BASE" >/dev/null
+          UP_PHP=$(docker run --rm --entrypoint php "$BASE" -r 'echo PHP_VERSION;')
+          UP_CREATED=$(docker image inspect -f '{{index .Config.Labels "org.opencontainers.image.created"}}' "$BASE")
           TAG=$(flyctl image show -a "$APP" | awk 'NR==3 {print $7}')
           flyctl auth docker
-          LIVE=$(docker run --rm --entrypoint php "registry.fly.io/$APP:$TAG" -r 'echo PHP_VERSION;')
-          echo "upstream=$UPSTREAM live=$LIVE ($APP:$TAG)"
-          echo "::notice::PHP upstream $UPSTREAM, live $LIVE"
-          if [ "$UPSTREAM" != "$LIVE" ] || [ "${{ inputs.force || 'false' }}" = "true" ]; then
-            echo "rebuild=true" >> "$GITHUB_OUTPUT"
-          fi
+          LIVE="registry.fly.io/$APP:$TAG"
+          docker pull -q "$LIVE" >/dev/null
+          LIVE_PHP=$(docker run --rm --entrypoint php "$LIVE" -r 'echo PHP_VERSION;')
+          LIVE_BASE=$(docker image inspect -f '{{index .Config.Labels "org.opencontainers.image.created"}}' "$LIVE")
+          LIVE_AGE_D=$(( ( $(date +%s) - $(date -d "$(docker image inspect -f '{{.Created}}' "$LIVE")" +%s) ) / 86400 ))
+          echo "::notice::PHP upstream $UP_PHP / live $LIVE_PHP · base built $UP_CREATED / live's base $LIVE_BASE · live image ${LIVE_AGE_D}d old"
+          WHY=""
+          [ "$UP_PHP" != "$LIVE_PHP" ] && WHY="$WHY php"
+          [ -n "$UP_CREATED" ] && [ "$UP_CREATED" \> "$LIVE_BASE" ] && WHY="$WHY base"
+          [ "$LIVE_AGE_D" -ge 7 ] && WHY="$WHY weekly"
+          [ "${{ inputs.force || 'false' }}" = "true" ] && WHY="$WHY force"
+          if [ -n "$WHY" ]; then echo "::notice::rebuilding:$WHY"; echo "rebuild=true" >> "$GITHUB_OUTPUT"; fi
 
       - name: Rebuild and deploy the source image
         if: steps.cmp.outputs.rebuild == 'true'
