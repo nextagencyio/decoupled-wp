@@ -127,48 +127,59 @@ jobs:
             jq -r '.advisories | to_entries[] | .value[] | "• \(.packageName) — \(.title)"' /tmp/audit-after.json >> /tmp/advisory-summary.txt
           fi
 
-      - name: Create pull request
+      # Ship it without a PR. The old flow opened a PR that only auto-merged
+      # with a GH_PAT this repo never had, and nothing rebuilt the image after
+      # a merge anyway, so WordPress fixes never reached a tenant. Now: push
+      # the lock to a branch, install-test that exact commit, fast-forward main,
+      # rebuild the decoupled-wp source image. Tenants pick it up from
+      # decoupled-dashboard's fleet deploy (every 6h, drift-only).
+      - name: Push the updated lock to the staging branch
+        id: stage
         if: steps.audit.outputs.advisories_count != '0' && !inputs.dry_run
-        uses: peter-evans/create-pull-request@v7
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B security-updates/automated
+          git add composer.json composer.lock
+          git commit -q -m "chore(deps): apply WordPress security updates" \
+            -m "$(cat /tmp/advisory-summary.txt 2>/dev/null || echo 'see workflow log')" \
+            -m "Automated by .github/workflows/wp-security-updates.yml"
+          git push -f origin security-updates/automated
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+    outputs:
+      sha: ${{ steps.stage.outputs.sha }}
+
+  install-test:
+    needs: audit
+    if: needs.audit.outputs.sha != ''
+    uses: ./.github/workflows/pr-install-test.yml
+    with:
+      ref: ${{ needs.audit.outputs.sha }}
+
+  ship:
+    needs: [audit, install-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
         with:
-          # Use a PAT instead of the default GITHUB_TOKEN so the PR
-          # counts as user-authored — otherwise GitHub suppresses
-          # downstream pull_request events (like pr-install-test) to
-          # prevent workflow recursion, which would block auto-merge.
-          # Falls back to GITHUB_TOKEN if GH_PAT isn't set on the
-          # repo; the PR still opens but auto-merge won't fire.
-          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
-          branch: security-updates/automated
-          base: main
-          commit-message: |
-            chore(deps): apply WordPress security updates
+          ref: main
+          fetch-depth: 0
+      - name: Land the tested lock on main
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin security-updates/automated
+          git checkout "${{ needs.audit.outputs.sha }}" -- composer.json composer.lock
+          git commit -q -m "chore(deps): apply WordPress security updates" \
+            -m "Install-tested at ${{ needs.audit.outputs.sha }}. Automated by .github/workflows/wp-security-updates.yml" || { echo "main already has this lock"; exit 0; }
+          git push origin HEAD:main
+          git push origin --delete security-updates/automated || true
 
-            Automated by .github/workflows/wp-security-updates.yml
-          title: "🔒 WordPress security updates"
-          body: |
-            **Automated security advisories applied by the nightly
-            `wp-security-updates` workflow.**
-
-            ### Advisories addressed
-            ```
-            $(cat /tmp/advisory-summary.txt 2>/dev/null || echo '(see workflow log)')
-            ```
-
-            ### Auto-merge
-            This PR will auto-merge into `main` once
-            [`pr-install-test`](../actions/workflows/pr-install-test.yml)
-            passes — a real `wp core install` against the new lock,
-            plus activation of dc-core / dc-puck / wp-graphql /
-            wp-graphql-jwt-authentication. If the install test fails,
-            the PR stays open for human review.
-
-            Auto-merge requires a `GH_PAT` secret to be set on this
-            repo; without it the PR opens but stays open until someone
-            merges manually.
-
-            ### Rollback
-            If this update breaks production after it's deployed:
-            1. Revert the merge commit on `main`, OR
-            2. Roll back the Fly source image to the previous deployment tag with `fly deploy -a decoupled-wp --image registry.fly.io/decoupled-wp:<previous-tag>`.
-          labels: security, dependencies, automated
-          delete-branch: true
+  deploy:
+    needs: ship
+    uses: ./.github/workflows/php-runtime-refresh.yml
+    with:
+      force: true
+    secrets: inherit
